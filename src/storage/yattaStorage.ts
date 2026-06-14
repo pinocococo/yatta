@@ -1,0 +1,46 @@
+import { getCompletionDateKey } from "@/lib/date";
+import { keyValueStore } from "@/storage/keyValueStore";
+import { CompletionState, YattaData } from "@/types/yatta";
+import { defaultSettings, defaultTasks } from "@/storage/defaults";
+
+const STORAGE_KEY = "yatta:v1";
+
+const freshCompletion = (date: string): CompletionState => ({
+  date,
+  completedTaskIds: [],
+});
+
+export const loadYattaData = async (): Promise<YattaData> => {
+  const fallbackDate = getCompletionDateKey(defaultSettings);
+  const fallback: YattaData = {
+    tasks: defaultTasks,
+    settings: defaultSettings,
+    completion: freshCompletion(fallbackDate),
+  };
+
+  const raw = await keyValueStore.getItem(STORAGE_KEY);
+  if (!raw) {
+    await saveYattaData(fallback);
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<YattaData>;
+    const settings = { ...defaultSettings, ...parsed.settings };
+    const today = getCompletionDateKey(settings);
+    const storedCompletion = parsed.completion;
+    return {
+      tasks: parsed.tasks?.length ? parsed.tasks : defaultTasks,
+      settings,
+      completion:
+        storedCompletion?.date === today ? storedCompletion : freshCompletion(today),
+    };
+  } catch {
+    await saveYattaData(fallback);
+    return fallback;
+  }
+};
+
+export const saveYattaData = async (data: YattaData) => {
+  await keyValueStore.setItem(STORAGE_KEY, JSON.stringify(data));
+};
