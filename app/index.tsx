@@ -162,7 +162,7 @@ export default function YattaApp() {
           setPeriod={setPeriod}
           tasks={visibleTasks}
           theme={theme}
-          onComplete={(taskId) => completeTask(taskId, period)}
+          onComplete={completeTask}
           onOpenSettings={() => setScreen("settings")}
           onReset={resetToday}
         />
@@ -211,7 +211,7 @@ function TaskListScreen({
   setPeriod: (period: Period) => void;
   tasks: Task[];
   theme: ReturnType<typeof buildTheme>;
-  onComplete: (taskId: string) => void;
+  onComplete: (taskId: string, period: Period) => void;
   onOpenSettings: () => void;
   onReset: () => void;
 }) {
@@ -287,8 +287,9 @@ function TaskListScreen({
       >
         {tasks.map((task) => (
           <TaskCard
-            key={task.id}
+            key={completionKey(period, task.id)}
             task={task}
+            period={period}
             theme={theme}
             onComplete={onComplete}
             onSwipeActiveChange={setTaskSwipeActive}
@@ -348,6 +349,7 @@ function SettingsScreen({
       ) : (
         <ItemSettings tasks={data.tasks} theme={theme} onUpdateTasks={onUpdateTasks} />
       )}
+      <Text style={[styles.soundCredit, { color: theme.text }]}>音源：otologic</Text>
     </View>
   );
 }
@@ -772,6 +774,13 @@ const styles = StyleSheet.create({
   },
   settingsBody: {
     flex: 1,
+  },
+  soundCredit: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    fontSize: 12,
+    opacity: 0.6,
+    textAlign: "right",
   },
   settingRow: {
     minHeight: 72,

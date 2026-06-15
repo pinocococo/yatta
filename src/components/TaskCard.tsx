@@ -1,4 +1,5 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Audio } from "expo-av";
 import {
   Animated,
   PanResponder,
@@ -13,7 +14,9 @@ import {
   createCompletionValues,
   playCompleteAnimation,
 } from "@/features/completion/animations";
-import { Task, Theme } from "@/types/yatta";
+import { Period, Task, Theme } from "@/types/yatta";
+
+const blowAwaySound = require("../../assets/audio/blow-away-short.mp3");
 
 const SWIPE_ACTIVATION_DISTANCE = 12;
 const SWIPE_COMPLETE_DISTANCE = 92;
@@ -38,19 +41,40 @@ const TAP_ANIMATION_TYPES: CompletionAnimationType[] = [
   "pulseOut",
   "burstOut",
 ];
+const SOUND_ANIMATION_TYPES: CompletionAnimationType[] = [
+  "swipeFlyLeft",
+  "swipeFlyRight",
+];
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
 
+const playBlowAwaySound = async () => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(blowAwaySound, {
+      shouldPlay: true,
+    });
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        void sound.unloadAsync();
+      }
+    });
+  } catch {
+    // Sound is a nice-to-have flourish; task completion should never fail because of it.
+  }
+};
+
 type Props = {
   task: Task;
+  period: Period;
   theme: Theme;
-  onComplete: (taskId: string) => void;
+  onComplete: (taskId: string, period: Period) => void;
   onSwipeActiveChange?: (isActive: boolean) => void;
   animationType?: CompletionAnimationType;
 };
 
 export function TaskCard({
   task,
+  period,
   theme,
   onComplete,
   onSwipeActiveChange,
@@ -65,6 +89,11 @@ export function TaskCard({
   >(null);
   const [scaleAnchor, setScaleAnchor] = useState<ScaleAnchor>("left");
   const [isCompleting, setCompleting] = useState(false);
+  const [isGone, setGone] = useState(false);
+
+  useEffect(() => {
+    setGone(false);
+  }, [period, task.id]);
 
   const completeTask = (completeAnimationType: CompletionAnimationType) => {
     if (isCompletingRef.current) {
@@ -72,10 +101,14 @@ export function TaskCard({
     }
     isCompletingRef.current = true;
     setCompleting(true);
+    if (SOUND_ANIMATION_TYPES.includes(completeAnimationType)) {
+      void playBlowAwaySound();
+    }
     playCompleteAnimation(completeAnimationType, {
       values,
       onFinished: () => {
-        onComplete(task.id);
+        onComplete(task.id, period);
+        setGone(true);
         isCompletingRef.current = false;
         setCompleting(false);
       },
@@ -273,6 +306,10 @@ export function TaskCard({
     shadowColor: theme.primary,
     boxShadow: `0px 4px 0px ${theme.primary}`,
   } as object;
+
+  if (isGone) {
+    return null;
+  }
 
   return (
     <Animated.View
