@@ -3,6 +3,7 @@ import { Animated } from "react-native";
 export type CompletionAnimationType =
   | "flyUp"
   | "pulseOut"
+  | "burstOut"
   | "slingShot"
   | "slingShotLeft"
   | "swipeFlyLeft"
@@ -51,7 +52,7 @@ const playFlyUp = ({ values, onFinished }: PlayArgs) => {
       useNativeDriver: true,
     }),
     Animated.timing(values.rotate, {
-      toValue: 0,
+      toValue: 1.4,
       duration: 220,
       useNativeDriver: true,
     }),
@@ -409,12 +410,64 @@ const playPulseOut = ({ values, onFinished }: PlayArgs) => {
   });
 };
 
+const playBurstOut = ({ values, onFinished }: PlayArgs) => {
+  Animated.parallel([
+    Animated.sequence([
+      Animated.timing(values.scaleX, {
+        toValue: 0.82,
+        duration: 55,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 1.72,
+        duration: 165,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 2.35,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]),
+    Animated.sequence([
+      Animated.timing(values.scaleY, {
+        toValue: 0.82,
+        duration: 55,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 1.72,
+        duration: 165,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 2.35,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+    ]),
+    Animated.sequence([
+      Animated.delay(95),
+      Animated.timing(values.opacity, {
+        toValue: 0,
+        duration: 265,
+        useNativeDriver: true,
+      }),
+    ]),
+  ]).start(({ finished }) => {
+    if (finished) {
+      onFinished();
+    }
+  });
+};
+
 const animationRegistry: Record<
   CompletionAnimationType,
   (args: PlayArgs) => void
 > = {
   flyUp: playFlyUp,
   pulseOut: playPulseOut,
+  burstOut: playBurstOut,
   slingShot: playSlingShot,
   slingShotLeft: playSlingShotLeft,
   swipeFlyLeft: playSwipeFlyLeft,

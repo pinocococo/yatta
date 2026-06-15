@@ -33,7 +33,11 @@ const SWIPE_RIGHT_ANIMATION_TYPES: CompletionAnimationType[] = [
   "swipeSpinOut",
   "swipeFlyUpRight",
 ];
-const TAP_ANIMATION_TYPES: CompletionAnimationType[] = ["flyUp", "pulseOut"];
+const TAP_ANIMATION_TYPES: CompletionAnimationType[] = [
+  "flyUp",
+  "pulseOut",
+  "burstOut",
+];
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
 
@@ -84,7 +88,9 @@ export function TaskCard({
     const randomIndex = Math.floor(Math.random() * animationTypes.length);
     const nextAnimationType = animationTypes[randomIndex];
     setScaleAnchor(
-      nextAnimationType === "pulseOut" || nextAnimationType === "flyUp"
+      nextAnimationType === "pulseOut" ||
+        nextAnimationType === "flyUp" ||
+        nextAnimationType === "burstOut"
         ? "center"
         : "left",
     );
