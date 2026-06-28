@@ -1,6 +1,7 @@
 import { Animated } from "react-native";
 
 export type CompletionAnimationType =
+  | "quickFade"
   | "flyUp"
   | "pulseOut"
   | "burstOut"
@@ -69,6 +70,30 @@ const playFlyUp = ({ values, onFinished }: PlayArgs) => {
     Animated.timing(values.opacity, {
       toValue: 0,
       duration: 180,
+      useNativeDriver: true,
+    }),
+  ]).start(({ finished }) => {
+    if (finished) {
+      onFinished();
+    }
+  });
+};
+
+const playQuickFade = ({ values, onFinished }: PlayArgs) => {
+  Animated.parallel([
+    Animated.timing(values.scaleX, {
+      toValue: 0.96,
+      duration: 90,
+      useNativeDriver: true,
+    }),
+    Animated.timing(values.scaleY, {
+      toValue: 0.96,
+      duration: 90,
+      useNativeDriver: true,
+    }),
+    Animated.timing(values.opacity, {
+      toValue: 0,
+      duration: 90,
       useNativeDriver: true,
     }),
   ]).start(({ finished }) => {
@@ -427,6 +452,7 @@ const animationRegistry: Record<
   CompletionAnimationType,
   (args: PlayArgs) => void
 > = {
+  quickFade: playQuickFade,
   flyUp: playFlyUp,
   pulseOut: playPulseOut,
   burstOut: playBurstOut,

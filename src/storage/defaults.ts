@@ -8,6 +8,7 @@ export const defaultSettings: AppSettings = {
     night: "17:00",
   },
   themeColor: "blue",
+  funCompletions: true,
 };
 
 export const defaultTasks: Task[] = [

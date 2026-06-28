@@ -257,6 +257,7 @@ type Props = {
   period: Period;
   theme: Theme;
   isTablet?: boolean;
+  completionEffectsEnabled?: boolean;
   onComplete: (taskId: string, period: Period) => void;
   onSwipeActiveChange?: (isActive: boolean) => void;
   animationType?: CompletionAnimationType;
@@ -267,6 +268,7 @@ export function TaskCard({
   period,
   theme,
   isTablet = false,
+  completionEffectsEnabled = true,
   onComplete,
   onSwipeActiveChange,
   animationType = "flyUp",
@@ -287,10 +289,13 @@ export function TaskCard({
   }, [period, task.id]);
 
   useEffect(() => {
+    if (!completionEffectsEnabled) {
+      return;
+    }
     void loadBlowAwaySound();
     void loadFlySwishSound();
     void loadSpinSwishSound();
-  }, []);
+  }, [completionEffectsEnabled]);
 
   const completeTask = (completeAnimationType: CompletionAnimationType) => {
     if (isCompletingRef.current) {
@@ -298,20 +303,22 @@ export function TaskCard({
     }
     isCompletingRef.current = true;
     setCompleting(true);
-    if (
-      completeAnimationType === "swipeFlyUpLeft" ||
-      completeAnimationType === "swipeFlyUpRight"
-    ) {
-      void playBlowAwaySound();
-    }
-    if (
-      completeAnimationType === "swipeFlyLeft" ||
-      completeAnimationType === "swipeFlyRight"
-    ) {
-      void playFlySwishSound();
-    }
-    if (completeAnimationType === "swipeSpinOut") {
-      void playSpinSwishSound();
+    if (completionEffectsEnabled) {
+      if (
+        completeAnimationType === "swipeFlyUpLeft" ||
+        completeAnimationType === "swipeFlyUpRight"
+      ) {
+        void playBlowAwaySound();
+      }
+      if (
+        completeAnimationType === "swipeFlyLeft" ||
+        completeAnimationType === "swipeFlyRight"
+      ) {
+        void playFlySwishSound();
+      }
+      if (completeAnimationType === "swipeSpinOut") {
+        void playSpinSwishSound();
+      }
     }
     playCompleteAnimation(completeAnimationType, {
       values,
@@ -325,6 +332,11 @@ export function TaskCard({
   };
 
   const tapComplete = () => {
+    if (!completionEffectsEnabled) {
+      setScaleAnchor("center");
+      completeTask("quickFade");
+      return;
+    }
     const animationTypes: CompletionAnimationType[] =
       animationType === "flyUp" ? TAP_ANIMATION_TYPES : [animationType, "pulseOut"];
     const randomIndex = Math.floor(Math.random() * animationTypes.length);
@@ -345,6 +357,16 @@ export function TaskCard({
   };
 
   const chooseSwipeAnimationType = (direction: SwipeDirection) => {
+    if (!completionEffectsEnabled) {
+      const nextAnimationType: CompletionAnimationType =
+        direction === "left" ? "swipeFlyLeft" : "swipeFlyRight";
+      swipeAnimationTypeRef.current = nextAnimationType;
+      swipeDirectionRef.current = direction;
+      setSwipeAnimationType(nextAnimationType);
+      setScaleAnchor("left");
+      return nextAnimationType;
+    }
+
     const animationTypes =
       direction === "left" ? SWIPE_LEFT_ANIMATION_TYPES : SWIPE_RIGHT_ANIMATION_TYPES;
     const randomIndex = Math.floor(Math.random() * animationTypes.length);

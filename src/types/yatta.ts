@@ -18,6 +18,7 @@ export type AppSettings = {
   resetTime: string;
   periodStartTimes: Record<Period, string>;
   themeColor: ThemeColor;
+  funCompletions: boolean;
 };
 
 export type YattaData = {

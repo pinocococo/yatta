@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -62,6 +63,16 @@ const getTasksFor = (
     .sort(byOrder);
 };
 
+const getDayForCompletion = (completion: CompletionState) =>
+  new Date(`${completion.date}T12:00:00`).getDay();
+
+const getPeriodsWithTasksForDay = (tasks: Task[], completion: CompletionState) => {
+  const day = getDayForCompletion(completion);
+  return PERIODS.filter((period) =>
+    tasks.some((task) => task.days.includes(day) && task.periods.includes(period)),
+  );
+};
+
 const normalizeTime = (value: string) =>
   value
     .replace(/[^\d:]/g, "")
@@ -89,6 +100,16 @@ export default function YattaApp() {
     () => buildTheme(data?.settings.themeColor ?? defaultSettings.themeColor),
     [data?.settings.themeColor],
   );
+  const visiblePeriods = useMemo(
+    () => (data ? getPeriodsWithTasksForDay(data.tasks, data.completion) : PERIODS),
+    [data],
+  );
+
+  useEffect(() => {
+    if (data && visiblePeriods.length > 0 && !visiblePeriods.includes(period)) {
+      setPeriod(visiblePeriods[0]);
+    }
+  }, [data, period, visiblePeriods]);
 
   const updateData = (recipe: (current: YattaData) => YattaData) => {
     setData((current) => {
@@ -114,6 +135,27 @@ export default function YattaApp() {
       };
     });
   };
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    const syncCompletionDate = () => {
+      updateData((current) => {
+        const expectedDate = getCompletionDateKey(current.settings);
+        if (current.completion.date === expectedDate) {
+          return current;
+        }
+        return {
+          ...current,
+          completion: { date: expectedDate, completedTaskIds: [] },
+        };
+      });
+      setPeriod(getCurrentPeriod(data.settings));
+    };
+    const intervalId = setInterval(syncCompletionDate, 60 * 1000);
+    return () => clearInterval(intervalId);
+  }, [data]);
 
   if (!data) {
     return (
@@ -159,8 +201,10 @@ export default function YattaApp() {
         <TaskListScreen
           counts={counts}
           period={period}
+          periods={visiblePeriods}
           setPeriod={setPeriod}
           tasks={visibleTasks}
+          completionEffectsEnabled={data.settings.funCompletions}
           theme={theme}
           onComplete={completeTask}
           onOpenSettings={() => setScreen("settings")}
@@ -199,8 +243,10 @@ export default function YattaApp() {
 function TaskListScreen({
   counts,
   period,
+  periods,
   setPeriod,
   tasks,
+  completionEffectsEnabled,
   theme,
   onComplete,
   onOpenSettings,
@@ -208,8 +254,10 @@ function TaskListScreen({
 }: {
   counts: Record<Period, number>;
   period: Period;
+  periods: Period[];
   setPeriod: (period: Period) => void;
   tasks: Task[];
+  completionEffectsEnabled: boolean;
   theme: ReturnType<typeof buildTheme>;
   onComplete: (taskId: string, period: Period) => void;
   onOpenSettings: () => void;
@@ -257,16 +305,18 @@ function TaskListScreen({
           />
         </Pressable>
       </View>
-      <SegmentTabs
-        activeKey={period}
-        onChange={setPeriod}
-        tabs={PERIODS.map((key) => ({
-          key,
-          label: PERIOD_LABELS[key],
-          count: counts[key],
-        }))}
-        theme={theme}
-      />
+      {periods.length > 0 ? (
+        <SegmentTabs
+          activeKey={period}
+          onChange={setPeriod}
+          tabs={periods.map((key) => ({
+            key,
+            label: PERIOD_LABELS[key],
+            count: counts[key],
+          }))}
+          theme={theme}
+        />
+      ) : null}
       <View
         style={[
           styles.resetBand,
@@ -359,6 +409,7 @@ function TaskListScreen({
             period={period}
             theme={theme}
             isTablet={isTablet}
+            completionEffectsEnabled={completionEffectsEnabled}
             onComplete={onComplete}
             onSwipeActiveChange={setTaskSwipeActive}
           />
@@ -460,6 +511,8 @@ function BasicSettings({
 
   const setThemeColor = (themeColor: ThemeColor) =>
     onUpdateSettings({ ...settings, themeColor });
+  const setFunCompletions = (funCompletions: boolean) =>
+    onUpdateSettings({ ...settings, funCompletions });
   const isBlackYellow = theme.variant === "blackYellow";
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
@@ -546,6 +599,31 @@ function BasicSettings({
           ))}
         </View>
       </View>
+      <View
+        style={[
+          styles.settingRow,
+          styles.funSettingRow,
+          isBlackYellow && styles.blackYellowSettingSection,
+          {
+            backgroundColor: theme.settingsPanelBackground,
+            borderColor: theme.primary,
+          },
+        ]}
+      >
+        <Text style={[styles.settingLabel, { color: theme.text }]}>
+          タスク完了を楽しくする
+        </Text>
+        <Switch
+          value={settings.funCompletions}
+          onValueChange={setFunCompletions}
+          trackColor={{
+            false: theme.chipInactiveBackground,
+            true: theme.primary,
+          }}
+          thumbColor="#FFFFFF"
+          ios_backgroundColor={theme.chipInactiveBackground}
+        />
+      </View>
     </ScrollView>
   );
 }
@@ -608,10 +686,23 @@ function ItemSettings({
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const titleInputRefs = useRef<Record<string, TextInput | null>>({});
+  const scrollRef = useRef<ScrollView | null>(null);
+  const pendingAddedTaskIdRef = useRef<string | null>(null);
   const maxTitleInputWidth = Math.max(
     96,
     Math.min(isTablet ? width - 260 : 220, width - 170),
   );
+
+  useEffect(() => {
+    if (!pendingAddedTaskIdRef.current) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      scrollRef.current?.scrollToEnd({ animated: true });
+      pendingAddedTaskIdRef.current = null;
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [sortedTasks.length]);
 
   const updateTask = (taskId: string, patch: Partial<Task>) => {
     onUpdateTasks(tasks.map((task) => (task.id === taskId ? { ...task, ...patch } : task)));
@@ -644,10 +735,12 @@ function ItemSettings({
 
   const addTask = () => {
     const maxOrder = tasks.reduce((max, task) => Math.max(max, task.order), 0);
+    const nextTaskId = `task-${Date.now()}`;
+    pendingAddedTaskIdRef.current = nextTaskId;
     onUpdateTasks([
       ...tasks,
       {
-        id: `task-${Date.now()}`,
+        id: nextTaskId,
         title: "新しいタスク",
         days: [1, 2, 3, 4, 5],
         periods: ["morning"],
@@ -663,19 +756,8 @@ function ItemSettings({
     if (index < 0 || nextIndex < 0 || nextIndex >= list.length) {
       return;
     }
-    const current = list[index];
-    const next = list[nextIndex];
-    onUpdateTasks(
-      tasks.map((task) => {
-        if (task.id === current.id) {
-          return { ...task, order: next.order };
-        }
-        if (task.id === next.id) {
-          return { ...task, order: current.order };
-        }
-        return task;
-      }),
-    );
+    [list[index], list[nextIndex]] = [list[nextIndex], list[index]];
+    onUpdateTasks(list.map((task, orderIndex) => ({ ...task, order: orderIndex + 1 })));
   };
 
   return (
@@ -687,6 +769,7 @@ function ItemSettings({
       ]}
     >
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.itemsList,
           isTablet && styles.tabletItemsList,
@@ -767,6 +850,8 @@ function ItemSettings({
               </View>
               <View style={styles.orderButtons}>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${task.title}を上に移動`}
                   disabled={index === 0}
                   onPress={() => moveTask(task.id, -1)}
                   style={[
@@ -775,9 +860,11 @@ function ItemSettings({
                     index === 0 && styles.disabled,
                   ]}
                 >
-                  <Ionicons name="chevron-up" size={isTablet ? 24 : 18} color={theme.text} />
+                  <Ionicons name="chevron-up" size={isTablet ? 22 : 18} color={theme.text} />
                 </Pressable>
                 <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${task.title}を下に移動`}
                   disabled={index === sortedTasks.length - 1}
                   onPress={() => moveTask(task.id, 1)}
                   style={[
@@ -786,7 +873,7 @@ function ItemSettings({
                     index === sortedTasks.length - 1 && styles.disabled,
                   ]}
                 >
-                  <Ionicons name="chevron-down" size={isTablet ? 24 : 18} color={theme.text} />
+                  <Ionicons name="chevron-down" size={isTablet ? 22 : 18} color={theme.text} />
                 </Pressable>
               </View>
             </View>
@@ -1102,6 +1189,9 @@ const styles = StyleSheet.create({
   colorRow: {
     gap: 24,
   },
+  funSettingRow: {
+    justifyContent: "space-between",
+  },
   swatches: {
     flexDirection: "row",
     alignItems: "center",
@@ -1225,15 +1315,15 @@ const styles = StyleSheet.create({
   orderButtons: {
     position: "absolute",
     right: 0,
-    top: -4,
+    bottom: 0,
     flexDirection: "row",
     gap: 4,
   },
   orderButton: {
-    width: 32,
-    height: 32,
     alignItems: "center",
     justifyContent: "center",
+    width: 32,
+    height: 32,
   },
   tabletOrderButton: {
     width: 52,
