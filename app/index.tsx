@@ -218,6 +218,7 @@ function TaskListScreen({
   const { width } = useWindowDimensions();
   const [isTaskSwipeActive, setTaskSwipeActive] = useState(false);
   const isBlackYellow = theme.variant === "blackYellow";
+  const isTablet = width >= 768;
   const zigzagCount = Math.max(1, Math.round(width / 28.284));
   const zigzagUnit = width / zigzagCount;
   const zigzagSquare = zigzagUnit / Math.SQRT2;
@@ -228,7 +229,7 @@ function TaskListScreen({
       <View
         style={[
           styles.mainHeader,
-          isBlackYellow && styles.blackYellowContentWidth,
+          isBlackYellow && !isTablet && styles.blackYellowContentWidth,
           { backgroundColor: theme.headerBackground },
         ]}
       >
@@ -270,7 +271,7 @@ function TaskListScreen({
         style={[
           styles.resetBand,
           isBlackYellow && styles.blackYellowResetBand,
-          isBlackYellow && styles.blackYellowContentWidth,
+          isBlackYellow && !isTablet && styles.blackYellowContentWidth,
           { backgroundColor: theme.resetBandBackground },
         ]}
       >
@@ -345,8 +346,9 @@ function TaskListScreen({
         style={styles.taskScroll}
         contentContainerStyle={[
           styles.taskList,
+          isTablet && styles.tabletTaskList,
           isBlackYellow && styles.blackYellowTaskList,
-          isBlackYellow && styles.blackYellowContentWidth,
+          isBlackYellow && !isTablet && styles.blackYellowContentWidth,
           { width },
         ]}
       >
@@ -356,6 +358,7 @@ function TaskListScreen({
             task={task}
             period={period}
             theme={theme}
+            isTablet={isTablet}
             onComplete={onComplete}
             onSwipeActiveChange={setTaskSwipeActive}
           />
@@ -388,19 +391,21 @@ function SettingsScreen({
   onUpdateTasks: (tasks: Task[]) => void;
 }) {
   const isBlackYellow = theme.variant === "blackYellow";
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   return (
     <View
       style={[
         styles.settingsScreen,
-        isBlackYellow && styles.blackYellowSettingsScreen,
+        isBlackYellow && !isTablet && styles.blackYellowSettingsScreen,
         { backgroundColor: theme.settingsBackground },
       ]}
     >
       <View
         style={[
           styles.settingsHeader,
-          isBlackYellow && styles.blackYellowContentWidth,
+          isBlackYellow && !isTablet && styles.blackYellowContentWidth,
           { backgroundColor: theme.headerBackground },
         ]}
       >
@@ -456,17 +461,20 @@ function BasicSettings({
   const setThemeColor = (themeColor: ThemeColor) =>
     onUpdateSettings({ ...settings, themeColor });
   const isBlackYellow = theme.variant === "blackYellow";
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   return (
     <ScrollView
       style={[
         styles.settingsBody,
-        isBlackYellow && styles.blackYellowContentWidth,
+        isBlackYellow && !isTablet && styles.blackYellowContentWidth,
         { backgroundColor: theme.settingsBackground },
       ]}
       contentContainerStyle={[
         styles.settingsBodyContent,
-        isBlackYellow && styles.blackYellowSettingsBodyContent,
+        isTablet && styles.tabletSettingsBodyContent,
+        isBlackYellow && !isTablet && styles.blackYellowSettingsBodyContent,
       ]}
     >
       <View
@@ -598,8 +606,12 @@ function ItemSettings({
   const sortedTasks = [...tasks].sort(byOrder);
   const isBlackYellow = theme.variant === "blackYellow";
   const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
   const titleInputRefs = useRef<Record<string, TextInput | null>>({});
-  const maxTitleInputWidth = Math.max(96, Math.min(220, width - 170));
+  const maxTitleInputWidth = Math.max(
+    96,
+    Math.min(isTablet ? width - 260 : 220, width - 170),
+  );
 
   const updateTask = (taskId: string, patch: Partial<Task>) => {
     onUpdateTasks(tasks.map((task) => (task.id === taskId ? { ...task, ...patch } : task)));
@@ -670,14 +682,15 @@ function ItemSettings({
     <View
       style={[
         styles.itemsWrap,
-        isBlackYellow && styles.blackYellowContentWidth,
+        isBlackYellow && !isTablet && styles.blackYellowContentWidth,
         { backgroundColor: theme.settingsBackground },
       ]}
     >
       <ScrollView
         contentContainerStyle={[
           styles.itemsList,
-          isBlackYellow && styles.blackYellowItemsList,
+          isTablet && styles.tabletItemsList,
+          isBlackYellow && !isTablet && styles.blackYellowItemsList,
         ]}
       >
         {sortedTasks.map((task, index) => (
@@ -736,7 +749,7 @@ function ItemSettings({
                 />
               ))}
             </View>
-            <View style={styles.periodRow}>
+            <View style={[styles.periodRow, isTablet && styles.tabletPeriodRow]}>
               <View style={styles.periodChips}>
                 {PERIODS.map((key) => (
                   <ToggleChip
@@ -744,27 +757,36 @@ function ItemSettings({
                     active={task.periods.includes(key)}
                     label={PERIOD_SETTING_LABELS[key]}
                     theme={theme}
+                    fill
                     onPress={() => togglePeriod(task, key)}
                   />
+                ))}
+                {Array.from({ length: DAY_ORDER.length - PERIODS.length }).map((_, spacerIndex) => (
+                  <View key={`period-spacer-${spacerIndex}`} style={styles.periodChipSpacer} />
                 ))}
               </View>
               <View style={styles.orderButtons}>
                 <Pressable
                   disabled={index === 0}
                   onPress={() => moveTask(task.id, -1)}
-                  style={[styles.orderButton, index === 0 && styles.disabled]}
+                  style={[
+                    styles.orderButton,
+                    isTablet && styles.tabletOrderButton,
+                    index === 0 && styles.disabled,
+                  ]}
                 >
-                  <Ionicons name="chevron-up" size={18} color={theme.text} />
+                  <Ionicons name="chevron-up" size={isTablet ? 24 : 18} color={theme.text} />
                 </Pressable>
                 <Pressable
                   disabled={index === sortedTasks.length - 1}
                   onPress={() => moveTask(task.id, 1)}
                   style={[
                     styles.orderButton,
+                    isTablet && styles.tabletOrderButton,
                     index === sortedTasks.length - 1 && styles.disabled,
                   ]}
                 >
-                  <Ionicons name="chevron-down" size={18} color={theme.text} />
+                  <Ionicons name="chevron-down" size={isTablet ? 24 : 18} color={theme.text} />
                 </Pressable>
               </View>
             </View>
@@ -775,9 +797,13 @@ function ItemSettings({
         accessibilityRole="button"
         accessibilityLabel="タスクを追加"
         onPress={addTask}
-        style={[styles.addButton, { backgroundColor: theme.addButtonBackground }]}
+        style={[
+          styles.addButton,
+          isTablet && styles.tabletAddButton,
+          { backgroundColor: theme.addButtonBackground },
+        ]}
       >
-        <Ionicons name="add" size={44} color={theme.addButtonIcon} />
+        <Ionicons name="add" size={isTablet ? 32 : 44} color={theme.addButtonIcon} />
       </Pressable>
     </View>
   );
@@ -972,6 +998,11 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 16,
   },
+  tabletTaskList: {
+    paddingHorizontal: 80,
+    paddingTop: 40,
+    paddingBottom: 40,
+  },
   blackYellowTaskList: {
     paddingTop: 16,
     gap: 24,
@@ -1022,6 +1053,9 @@ const styles = StyleSheet.create({
   },
   settingsBodyContent: {
     paddingTop: 8,
+  },
+  tabletSettingsBodyContent: {
+    alignItems: "stretch",
   },
   blackYellowSettingsBodyContent: {
     paddingHorizontal: 8,
@@ -1111,6 +1145,9 @@ const styles = StyleSheet.create({
   itemsList: {
     paddingBottom: 96,
   },
+  tabletItemsList: {
+    paddingBottom: 112,
+  },
   blackYellowItemsList: {
     paddingHorizontal: 8,
     paddingTop: 8,
@@ -1151,14 +1188,23 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   periodRow: {
+    position: "relative",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
+    minHeight: 43,
+  },
+  tabletPeriodRow: {
+    minHeight: 52,
   },
   periodChips: {
     flexDirection: "row",
+    width: "100%",
     gap: 8,
+  },
+  periodChipSpacer: {
+    flex: 1,
+    minWidth: 0,
+    height: 43,
   },
   toggleChip: {
     minWidth: 43,
@@ -1177,6 +1223,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   orderButtons: {
+    position: "absolute",
+    right: 0,
+    top: -4,
     flexDirection: "row",
     gap: 4,
   },
@@ -1185,6 +1234,10 @@ const styles = StyleSheet.create({
     height: 32,
     alignItems: "center",
     justifyContent: "center",
+  },
+  tabletOrderButton: {
+    width: 52,
+    height: 52,
   },
   disabled: {
     opacity: 0.25,
@@ -1203,5 +1256,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.24,
     shadowRadius: 8,
     elevation: 6,
+  },
+  tabletAddButton: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
   },
 });

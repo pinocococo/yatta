@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 import { Theme } from "@/types/yatta";
 
@@ -22,12 +22,14 @@ export function SegmentTabs<T extends string>({
   onChange,
 }: Props<T>) {
   const isBlackYellow = theme.variant === "blackYellow";
+  const { width } = useWindowDimensions();
+  const isTablet = width >= 768;
 
   return (
     <View
       style={[
         styles.wrap,
-        isBlackYellow && styles.blackYellowWrap,
+        isBlackYellow && !isTablet && styles.blackYellowWrap,
         { backgroundColor: theme.headerBackground },
       ]}
     >

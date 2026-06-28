@@ -235,68 +235,30 @@ const playSwipeFlyRight = ({ values, onFinished }: PlayArgs) => {
 };
 
 const playSwipeSpinOut = ({ values, onFinished }: PlayArgs) => {
-  Animated.parallel([
+  values.scaleX.stopAnimation((currentScaleX) => {
+    const spinTargets =
+      currentScaleX <= 0 ? [1, -1, 1, -1, 0.04] : [-1, 1, -1, 1, 0.04];
+
     Animated.parallel([
-      Animated.timing(values.translateX, {
-        toValue: 0,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.translateY, {
-        toValue: 0,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.rotate, {
-        toValue: 0,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.scaleY, {
-        toValue: 1,
-        duration: 80,
-        useNativeDriver: true,
-      }),
-    ]),
-    Animated.sequence([
-      Animated.timing(values.scaleX, {
-        toValue: -1,
-        duration: 95,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.scaleX, {
-        toValue: 1,
-        duration: 95,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.scaleX, {
-        toValue: -1,
-        duration: 95,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.scaleX, {
-        toValue: 1,
-        duration: 95,
-        useNativeDriver: true,
-      }),
-      Animated.timing(values.scaleX, {
-        toValue: 0.04,
-        duration: 90,
-        useNativeDriver: true,
-      }),
-    ]),
-    Animated.sequence([
-      Animated.delay(150),
+      Animated.sequence(
+        spinTargets.map((target, index) =>
+          Animated.timing(values.scaleX, {
+            toValue: target,
+            duration: index === spinTargets.length - 1 ? 80 : 85,
+            useNativeDriver: true,
+          }),
+        ),
+      ),
       Animated.timing(values.opacity, {
         toValue: 0,
-        duration: 260,
+        duration: 360,
         useNativeDriver: true,
       }),
-    ]),
-  ]).start(({ finished }) => {
-    if (finished) {
-      onFinished();
-    }
+    ]).start(({ finished }) => {
+      if (finished) {
+        onFinished();
+      }
+    });
   });
 };
 

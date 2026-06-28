@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Audio } from "expo-av";
 import {
   Animated,
   PanResponder,
@@ -14,6 +15,10 @@ import {
   playCompleteAnimation,
 } from "@/features/completion/animations";
 import { Period, Task, Theme } from "@/types/yatta";
+
+const blowAwaySound = require("../../assets/audio/blow-away-b4c4.mp3");
+const flySwishSound = require("../../assets/audio/fly-swish.mp3");
+const spinSwishSound = require("../../assets/audio/spin-swish-long.mp3");
 
 const SWIPE_ACTIVATION_DISTANCE = 12;
 const SWIPE_COMPLETE_DISTANCE = 92;
@@ -38,13 +43,220 @@ const TAP_ANIMATION_TYPES: CompletionAnimationType[] = [
   "pulseOut",
   "burstOut",
 ];
+const SPIN_SWISH_RATE = 1.5;
+const SPIN_SWISH_FADE_START_MS = 120;
+const SPIN_SWISH_FADE_DURATION_MS = 300;
+const SPIN_SWISH_STOP_MS = 430;
+const SPIN_SWISH_FADE_STEPS = 6;
+const FLY_SWISH_SOURCE_DURATION_MS = 365.714;
+const FLY_SWIPE_ANIMATION_DURATION_MS = 170;
+const FLY_SWISH_RATE =
+  FLY_SWISH_SOURCE_DURATION_MS / FLY_SWIPE_ANIMATION_DURATION_MS;
+const BLOW_AWAY_RATE = 1.2;
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
+
+let preparedBlowAwaySound: Audio.Sound | null = null;
+let blowAwayLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedFlySwishSound: Audio.Sound | null = null;
+let flySwishLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedSpinSwishSound: Audio.Sound | null = null;
+let spinSwishLoadPromise: Promise<Audio.Sound | null> | null = null;
+
+const loadBlowAwaySound = () => {
+  if (preparedBlowAwaySound) {
+    return Promise.resolve(preparedBlowAwaySound);
+  }
+  if (blowAwayLoadPromise) {
+    return blowAwayLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  blowAwayLoadPromise = sound
+    .loadAsync(blowAwaySound, {
+      rate: BLOW_AWAY_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedBlowAwaySound = sound;
+      return sound;
+    })
+    .catch(() => {
+      blowAwayLoadPromise = null;
+      return null;
+    });
+
+  return blowAwayLoadPromise;
+};
+
+const loadFlySwishSound = () => {
+  if (preparedFlySwishSound) {
+    return Promise.resolve(preparedFlySwishSound);
+  }
+  if (flySwishLoadPromise) {
+    return flySwishLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  flySwishLoadPromise = sound
+    .loadAsync(flySwishSound, {
+      rate: FLY_SWISH_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedFlySwishSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      flySwishLoadPromise = null;
+      return null;
+    });
+
+  return flySwishLoadPromise;
+};
+
+const loadSpinSwishSound = () => {
+  if (preparedSpinSwishSound) {
+    return Promise.resolve(preparedSpinSwishSound);
+  }
+  if (spinSwishLoadPromise) {
+    return spinSwishLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  spinSwishLoadPromise = sound
+    .loadAsync(spinSwishSound, {
+      rate: SPIN_SWISH_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedSpinSwishSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      spinSwishLoadPromise = null;
+      return null;
+    });
+
+  return spinSwishLoadPromise;
+};
+
+const playBlowAwaySound = async () => {
+  try {
+    const preparedSound = await loadBlowAwaySound();
+    if (preparedSound) {
+      await preparedSound.stopAsync().catch(() => undefined);
+      await preparedSound.setPositionAsync(0);
+      await preparedSound.setRateAsync(BLOW_AWAY_RATE, false);
+      await preparedSound.setVolumeAsync(1);
+      await preparedSound.playAsync();
+      return;
+    }
+
+    const { sound } = await Audio.Sound.createAsync(blowAwaySound, {
+      shouldPlay: true,
+      rate: BLOW_AWAY_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    });
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        void sound.unloadAsync().catch(() => undefined);
+      }
+    });
+  } catch {
+    // Completion should still work if the sound cannot be played.
+  }
+};
+
+const playFlySwishSound = async () => {
+  try {
+    const preparedSound = await loadFlySwishSound();
+    if (preparedSound) {
+      await preparedSound.stopAsync().catch(() => undefined);
+      await preparedSound.setPositionAsync(0);
+      await preparedSound.setRateAsync(FLY_SWISH_RATE, false);
+      await preparedSound.setVolumeAsync(1);
+      await preparedSound.playAsync();
+      return;
+    }
+
+    const { sound } = await Audio.Sound.createAsync(flySwishSound, {
+      shouldPlay: true,
+      rate: FLY_SWISH_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    });
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        void sound.unloadAsync().catch(() => undefined);
+      }
+    });
+  } catch {
+    // Completion should still work if the sound cannot be played.
+  }
+};
+
+const scheduleSpinSwishFade = (
+  sound: Audio.Sound,
+  shouldUnloadOnFinish: boolean,
+) => {
+  for (let step = 1; step <= SPIN_SWISH_FADE_STEPS; step += 1) {
+    const fadeStepMs =
+      SPIN_SWISH_FADE_START_MS +
+      (SPIN_SWISH_FADE_DURATION_MS / SPIN_SWISH_FADE_STEPS) * step;
+    setTimeout(() => {
+      void sound
+        .setVolumeAsync(1 - step / SPIN_SWISH_FADE_STEPS)
+        .catch(() => undefined);
+    }, fadeStepMs);
+  }
+
+  setTimeout(() => {
+    void sound
+      .stopAsync()
+      .catch(() => undefined)
+      .finally(() => {
+        if (shouldUnloadOnFinish) {
+          void sound.unloadAsync().catch(() => undefined);
+        }
+      });
+  }, SPIN_SWISH_STOP_MS);
+};
+
+const playSpinSwishSound = async () => {
+  try {
+    const preparedSound = await loadSpinSwishSound();
+    if (preparedSound) {
+      await preparedSound.stopAsync().catch(() => undefined);
+      await preparedSound.setPositionAsync(0);
+      await preparedSound.setRateAsync(SPIN_SWISH_RATE, false);
+      await preparedSound.setVolumeAsync(1);
+      await preparedSound.playAsync();
+      scheduleSpinSwishFade(preparedSound, false);
+      return;
+    }
+
+    const { sound } = await Audio.Sound.createAsync(spinSwishSound, {
+      shouldPlay: true,
+      rate: SPIN_SWISH_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    });
+    scheduleSpinSwishFade(sound, true);
+  } catch {
+    // Completion should still work if the sound cannot be played.
+  }
+};
 
 type Props = {
   task: Task;
   period: Period;
   theme: Theme;
+  isTablet?: boolean;
   onComplete: (taskId: string, period: Period) => void;
   onSwipeActiveChange?: (isActive: boolean) => void;
   animationType?: CompletionAnimationType;
@@ -54,6 +266,7 @@ export function TaskCard({
   task,
   period,
   theme,
+  isTablet = false,
   onComplete,
   onSwipeActiveChange,
   animationType = "flyUp",
@@ -73,12 +286,33 @@ export function TaskCard({
     setGone(false);
   }, [period, task.id]);
 
+  useEffect(() => {
+    void loadBlowAwaySound();
+    void loadFlySwishSound();
+    void loadSpinSwishSound();
+  }, []);
+
   const completeTask = (completeAnimationType: CompletionAnimationType) => {
     if (isCompletingRef.current) {
       return;
     }
     isCompletingRef.current = true;
     setCompleting(true);
+    if (
+      completeAnimationType === "swipeFlyUpLeft" ||
+      completeAnimationType === "swipeFlyUpRight"
+    ) {
+      void playBlowAwaySound();
+    }
+    if (
+      completeAnimationType === "swipeFlyLeft" ||
+      completeAnimationType === "swipeFlyRight"
+    ) {
+      void playFlySwishSound();
+    }
+    if (completeAnimationType === "swipeSpinOut") {
+      void playSpinSwishSound();
+    }
     playCompleteAnimation(completeAnimationType, {
       values,
       onFinished: () => {
@@ -318,6 +552,7 @@ export function TaskCard({
           onPress={tapComplete}
           style={[
             styles.card,
+            isTablet && styles.tabletCard,
             theme.variant === "blackYellow" && styles.blackYellowCard,
             shadowStyle,
             {
@@ -326,7 +561,7 @@ export function TaskCard({
             },
           ]}
         >
-          <View style={styles.cardInner}>
+          <View style={[styles.cardInner, isTablet && styles.tabletCardInner]}>
             <Text style={[styles.title, { color: theme.cardText }]} numberOfLines={1}>
               {task.title}
             </Text>
@@ -365,6 +600,9 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 4,
   },
+  tabletCard: {
+    minHeight: 80,
+  },
   blackYellowCard: {
     borderWidth: 3,
     borderRadius: 0,
@@ -374,6 +612,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingVertical: 14,
+  },
+  tabletCardInner: {
+    minHeight: 76,
   },
   title: {
     fontSize: 24,
