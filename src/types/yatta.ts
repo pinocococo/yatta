@@ -1,5 +1,5 @@
 export type Period = "morning" | "daytime" | "night";
-export type ThemeColor = "blue" | "black" | "pink" | "purple";
+export type ThemeColor = "blue" | "blackYellow";
 
 export type Task = {
   id: string;
@@ -27,10 +27,33 @@ export type YattaData = {
 };
 
 export type Theme = {
+  variant: ThemeColor;
   primary: string;
   text: string;
   background: string;
   softText: string;
+  headerBackground: string;
+  headerText: string;
+  resetBandBackground: string;
+  resetText: string;
+  counterBackground: string;
+  counterText: string;
+  tabActiveBackground: string;
+  tabInactiveBackground: string;
+  tabActiveText: string;
+  tabInactiveText: string;
+  tabBadgeBackground: string;
+  tabBadgeText: string;
+  cardBackground: string;
+  cardText: string;
+  settingsBackground: string;
+  settingsPanelBackground: string;
+  itemCardBackground: string;
+  chipActiveText: string;
+  chipInactiveBackground: string;
+  chipInactiveBorder: string;
+  addButtonBackground: string;
+  addButtonIcon: string;
 };
 
 export const PERIODS: Period[] = ["morning", "daytime", "night"];

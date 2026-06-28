@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Audio } from "expo-av";
 import {
   Animated,
   PanResponder,
@@ -15,8 +14,6 @@ import {
   playCompleteAnimation,
 } from "@/features/completion/animations";
 import { Period, Task, Theme } from "@/types/yatta";
-
-const blowAwaySound = require("../../assets/audio/blow-away-short.mp3");
 
 const SWIPE_ACTIVATION_DISTANCE = 12;
 const SWIPE_COMPLETE_DISTANCE = 92;
@@ -41,27 +38,8 @@ const TAP_ANIMATION_TYPES: CompletionAnimationType[] = [
   "pulseOut",
   "burstOut",
 ];
-const SOUND_ANIMATION_TYPES: CompletionAnimationType[] = [
-  "swipeFlyLeft",
-  "swipeFlyRight",
-];
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
-
-const playBlowAwaySound = async () => {
-  try {
-    const { sound } = await Audio.Sound.createAsync(blowAwaySound, {
-      shouldPlay: true,
-    });
-    sound.setOnPlaybackStatusUpdate((status) => {
-      if (status.isLoaded && status.didJustFinish) {
-        void sound.unloadAsync();
-      }
-    });
-  } catch {
-    // Sound is a nice-to-have flourish; task completion should never fail because of it.
-  }
-};
 
 type Props = {
   task: Task;
@@ -101,9 +79,6 @@ export function TaskCard({
     }
     isCompletingRef.current = true;
     setCompleting(true);
-    if (SOUND_ANIMATION_TYPES.includes(completeAnimationType)) {
-      void playBlowAwaySound();
-    }
     playCompleteAnimation(completeAnimationType, {
       values,
       onFinished: () => {
@@ -343,14 +318,16 @@ export function TaskCard({
           onPress={tapComplete}
           style={[
             styles.card,
+            theme.variant === "blackYellow" && styles.blackYellowCard,
             shadowStyle,
             {
               borderColor: theme.primary,
+              backgroundColor: theme.cardBackground,
             },
           ]}
         >
           <View style={styles.cardInner}>
-            <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+            <Text style={[styles.title, { color: theme.cardText }]} numberOfLines={1}>
               {task.title}
             </Text>
           </View>
@@ -387,6 +364,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 0,
     elevation: 4,
+  },
+  blackYellowCard: {
+    borderWidth: 3,
+    borderRadius: 0,
   },
   cardInner: {
     minHeight: 68,

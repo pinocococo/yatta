@@ -2,10 +2,11 @@ import { Theme, ThemeColor } from "@/types/yatta";
 
 export const THEME_COLORS: Record<ThemeColor, string> = {
   blue: "#00B4CA",
-  black: "#33333D",
-  pink: "#D067A9",
-  purple: "#8157B5",
+  blackYellow: "#9FD80F",
 };
+
+export const normalizeThemeColor = (themeColor?: string): ThemeColor =>
+  themeColor === "blackYellow" || themeColor === "blue" ? themeColor : "blue";
 
 const hexToRgb = (hex: string) => {
   const value = hex.replace("#", "");
@@ -30,12 +31,68 @@ export const blendHex = (base: string, overlay: string, alpha: number) => {
   return `#${componentToHex(mix.r)}${componentToHex(mix.g)}${componentToHex(mix.b)}`;
 };
 
-export const buildTheme = (themeColor: ThemeColor): Theme => {
-  const primary = THEME_COLORS[themeColor];
+export const buildTheme = (themeColor: ThemeColor | string): Theme => {
+  const normalizedThemeColor = normalizeThemeColor(themeColor);
+  if (normalizedThemeColor === "blackYellow") {
+    return {
+      variant: "blackYellow",
+      primary: THEME_COLORS.blackYellow,
+      text: "#000000",
+      background: "#000000",
+      softText: "#000000",
+      headerBackground: "#000000",
+      headerText: THEME_COLORS.blackYellow,
+      resetBandBackground: THEME_COLORS.blackYellow,
+      resetText: "#000000",
+      counterBackground: "#000000",
+      counterText: "#FFFFFF",
+      tabActiveBackground: THEME_COLORS.blackYellow,
+      tabInactiveBackground: "#000000",
+      tabActiveText: "#000000",
+      tabInactiveText: THEME_COLORS.blackYellow,
+      tabBadgeBackground: THEME_COLORS.blackYellow,
+      tabBadgeText: "#000000",
+      cardBackground: "#000000",
+      cardText: "#FFFFFF",
+      settingsBackground: THEME_COLORS.blackYellow,
+      settingsPanelBackground: "#FFFFFF",
+      itemCardBackground: "#FFFFFF",
+      chipActiveText: "#000000",
+      chipInactiveBackground: "#FFFFFF",
+      chipInactiveBorder: "#000000",
+      addButtonBackground: "#000000",
+      addButtonIcon: "#FFFFFF",
+    };
+  }
+
+  const primary = THEME_COLORS[normalizedThemeColor];
   return {
+    variant: "blue",
     primary,
     text: blendHex(primary, "#000000", 0.5),
     background: blendHex(primary, "#FFFFFF", 0.8),
     softText: blendHex(primary, "#FFFFFF", 0.86),
+    headerBackground: primary,
+    headerText: "#FFFFFF",
+    resetBandBackground: "#FFFFFF",
+    resetText: blendHex(primary, "#000000", 0.5),
+    counterBackground: primary,
+    counterText: "#FFFFFF",
+    tabActiveBackground: "#FFFFFF",
+    tabInactiveBackground: blendHex(primary, "#FFFFFF", 0.8),
+    tabActiveText: blendHex(primary, "#000000", 0.5),
+    tabInactiveText: blendHex(primary, "#000000", 0.5),
+    tabBadgeBackground: primary,
+    tabBadgeText: "#FFFFFF",
+    cardBackground: "#FFFFFF",
+    cardText: blendHex(primary, "#000000", 0.5),
+    settingsBackground: "#FFFFFF",
+    settingsPanelBackground: "#FFFFFF",
+    itemCardBackground: "#FFFFFF",
+    chipActiveText: blendHex(primary, "#FFFFFF", 0.86),
+    chipInactiveBackground: "#FFFFFF",
+    chipInactiveBorder: primary,
+    addButtonBackground: blendHex(primary, "#000000", 0.5),
+    addButtonIcon: "#FFFFFF",
   };
 };

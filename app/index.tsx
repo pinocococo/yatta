@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -153,7 +153,7 @@ export default function YattaApp() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.primary }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.headerBackground }]}>
       <StatusBar style="light" />
       {screen === "tasks" ? (
         <TaskListScreen
@@ -217,15 +217,29 @@ function TaskListScreen({
 }) {
   const { width } = useWindowDimensions();
   const [isTaskSwipeActive, setTaskSwipeActive] = useState(false);
+  const isBlackYellow = theme.variant === "blackYellow";
   const zigzagCount = Math.max(1, Math.round(width / 28.284));
   const zigzagUnit = width / zigzagCount;
   const zigzagSquare = zigzagUnit / Math.SQRT2;
-  const headerTitle = formatHeaderTitle();
+  const headerTitle = isBlackYellow ? "YATTA!" : formatHeaderTitle();
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
-      <View style={[styles.mainHeader, { backgroundColor: theme.primary }]}>
-        <Text style={styles.appTitle} numberOfLines={1}>
+      <View
+        style={[
+          styles.mainHeader,
+          isBlackYellow && styles.blackYellowContentWidth,
+          { backgroundColor: theme.headerBackground },
+        ]}
+      >
+        <Text
+          style={[
+            styles.appTitle,
+            isBlackYellow && styles.blackYellowAppTitle,
+            { color: theme.headerText },
+          ]}
+          numberOfLines={1}
+        >
           {headerTitle}
         </Text>
         <Pressable
@@ -234,7 +248,12 @@ function TaskListScreen({
           onPress={onOpenSettings}
           style={styles.iconButton}
         >
-          <Ionicons name="settings-outline" size={35} color="rgba(255,255,255,0.55)" />
+          <Ionicons
+            name="settings-outline"
+            size={isBlackYellow ? 36 : 31}
+            color={theme.headerText}
+            style={isBlackYellow && styles.blackYellowSettingsIcon}
+          />
         </Pressable>
       </View>
       <SegmentTabs
@@ -247,43 +266,89 @@ function TaskListScreen({
         }))}
         theme={theme}
       />
-      <View style={styles.resetBand}>
-        <Pressable onPress={onReset} hitSlop={10}>
-          <Text style={[styles.resetText, { color: theme.text }]}>リセットする</Text>
+      <View
+        style={[
+          styles.resetBand,
+          isBlackYellow && styles.blackYellowResetBand,
+          isBlackYellow && styles.blackYellowContentWidth,
+          { backgroundColor: theme.resetBandBackground },
+        ]}
+      >
+        <Pressable onPress={onReset} hitSlop={10} style={styles.resetButton}>
+          <Ionicons name="refresh" size={isBlackYellow ? 24 : 19} color={theme.resetText} />
+          <Text style={[styles.resetText, { color: theme.resetText }]}>
+            リセットする
+          </Text>
         </Pressable>
-        <View style={[styles.remainingPill, { backgroundColor: theme.primary }]}>
-          <Text style={styles.remainingSmall}>のこり</Text>
-          <Text style={styles.remainingBig}>{counts[period]}</Text>
-        </View>
-      </View>
-      <View style={styles.zigzag} pointerEvents="none">
-        {Array.from({ length: zigzagCount }).map((_, index) => (
-          <View
-            key={index}
-            style={[
-              styles.toothSlot,
-              {
-                width: zigzagUnit,
-                height: zigzagUnit,
-              },
-            ]}
-          >
+        {isBlackYellow ? (
+          <View style={styles.blackYellowRemaining}>
+            <View style={styles.blackYellowRemainingWedge} />
             <View
               style={[
-                styles.tooth,
+                styles.blackYellowRemainingBody,
+                { backgroundColor: theme.counterBackground },
+              ]}
+            >
+              <Text style={[styles.remainingSmall, { color: theme.counterText }]}>
+                のこり
+              </Text>
+              <Text style={[styles.remainingBig, { color: theme.counterText }]}>
+                {counts[period]}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.remainingPill,
+              { backgroundColor: theme.counterBackground },
+            ]}
+          >
+            <Text style={[styles.remainingSmall, { color: theme.counterText }]}>
+              のこり
+            </Text>
+            <Text style={[styles.remainingBig, { color: theme.counterText }]}>
+              {counts[period]}
+            </Text>
+          </View>
+        )}
+      </View>
+      {isBlackYellow ? null : (
+        <View style={styles.zigzag} pointerEvents="none">
+          {Array.from({ length: zigzagCount }).map((_, index) => (
+            <View
+              key={index}
+              style={[
+                styles.toothSlot,
                 {
-                  width: zigzagSquare,
-                  height: zigzagSquare,
+                  width: zigzagUnit,
+                  height: zigzagUnit,
                 },
               ]}
-            />
-          </View>
-        ))}
-      </View>
+            >
+              <View
+                style={[
+                  styles.tooth,
+                  {
+                    width: zigzagSquare,
+                    height: zigzagSquare,
+                    backgroundColor: theme.resetBandBackground,
+                  },
+                ]}
+              />
+            </View>
+          ))}
+        </View>
+      )}
       <ScrollView
         scrollEnabled={!isTaskSwipeActive}
         style={styles.taskScroll}
-        contentContainerStyle={[styles.taskList, { width }]}
+        contentContainerStyle={[
+          styles.taskList,
+          isBlackYellow && styles.blackYellowTaskList,
+          isBlackYellow && styles.blackYellowContentWidth,
+          { width },
+        ]}
       >
         {tasks.map((task) => (
           <TaskCard
@@ -322,13 +387,27 @@ function SettingsScreen({
   onUpdateSettings: (settings: AppSettings) => void;
   onUpdateTasks: (tasks: Task[]) => void;
 }) {
+  const isBlackYellow = theme.variant === "blackYellow";
+
   return (
-    <View style={styles.settingsScreen}>
-      <View style={[styles.settingsHeader, { backgroundColor: theme.primary }]}>
+    <View
+      style={[
+        styles.settingsScreen,
+        isBlackYellow && styles.blackYellowSettingsScreen,
+        { backgroundColor: theme.settingsBackground },
+      ]}
+    >
+      <View
+        style={[
+          styles.settingsHeader,
+          isBlackYellow && styles.blackYellowContentWidth,
+          { backgroundColor: theme.headerBackground },
+        ]}
+      >
         <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backText}>{"< 戻る"}</Text>
+          <Text style={[styles.backText, { color: theme.headerText }]}>{"< 戻る"}</Text>
         </Pressable>
-        <Text style={styles.settingsTitle}>設定</Text>
+        <Text style={[styles.settingsTitle, { color: theme.headerText }]}>設定</Text>
         <View style={styles.headerSpacer} />
       </View>
       <SegmentTabs
@@ -349,7 +428,6 @@ function SettingsScreen({
       ) : (
         <ItemSettings tasks={data.tasks} theme={theme} onUpdateTasks={onUpdateTasks} />
       )}
-      <Text style={[styles.soundCredit, { color: theme.text }]}>音源：otologic</Text>
     </View>
   );
 }
@@ -377,15 +455,44 @@ function BasicSettings({
 
   const setThemeColor = (themeColor: ThemeColor) =>
     onUpdateSettings({ ...settings, themeColor });
+  const isBlackYellow = theme.variant === "blackYellow";
 
   return (
-    <ScrollView style={styles.settingsBody}>
-      <View style={[styles.settingRow, { borderColor: theme.primary }]}>
+    <ScrollView
+      style={[
+        styles.settingsBody,
+        isBlackYellow && styles.blackYellowContentWidth,
+        { backgroundColor: theme.settingsBackground },
+      ]}
+      contentContainerStyle={[
+        styles.settingsBodyContent,
+        isBlackYellow && styles.blackYellowSettingsBodyContent,
+      ]}
+    >
+      <View
+        style={[
+          styles.settingRow,
+          isBlackYellow && styles.blackYellowSettingSection,
+          {
+            backgroundColor: theme.settingsPanelBackground,
+            borderColor: theme.primary,
+          },
+        ]}
+      >
         <Text style={[styles.settingLabel, { color: theme.text }]}>毎日</Text>
         <TimeInput value={settings.resetTime} theme={theme} onChangeText={setResetTime} />
         <Text style={[styles.settingLabel, { color: theme.text }]}>にリセットする</Text>
       </View>
-      <View style={[styles.settingBlock, { borderColor: theme.primary }]}>
+      <View
+        style={[
+          styles.settingBlock,
+          isBlackYellow && styles.blackYellowSettingSection,
+          {
+            backgroundColor: theme.settingsPanelBackground,
+            borderColor: theme.primary,
+          },
+        ]}
+      >
         {PERIODS.map((key) => (
           <View key={key} style={styles.periodTimeRow}>
             <TimeInput
@@ -399,7 +506,17 @@ function BasicSettings({
           </View>
         ))}
       </View>
-      <View style={[styles.settingRow, styles.colorRow, { borderColor: theme.primary }]}>
+      <View
+        style={[
+          styles.settingRow,
+          styles.colorRow,
+          isBlackYellow && styles.blackYellowSettingSection,
+          {
+            backgroundColor: theme.settingsPanelBackground,
+            borderColor: theme.primary,
+          },
+        ]}
+      >
         <Text style={[styles.settingLabel, { color: theme.text }]}>色</Text>
         <View style={styles.swatches}>
           {(Object.keys(THEME_COLORS) as ThemeColor[]).map((key) => (
@@ -416,19 +533,33 @@ function BasicSettings({
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.swatch,
-                  {
-                    backgroundColor: THEME_COLORS[key],
-                  },
-                ]}
-              />
+              <ThemeSwatch themeColor={key} />
             </Pressable>
           ))}
         </View>
       </View>
     </ScrollView>
+  );
+}
+
+function ThemeSwatch({ themeColor }: { themeColor: ThemeColor }) {
+  if (themeColor === "blackYellow") {
+    return (
+      <View style={[styles.swatch, styles.blackYellowSwatch]}>
+        <View style={styles.blackYellowSwatchTriangle} />
+      </View>
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.swatch,
+        {
+          backgroundColor: THEME_COLORS[themeColor],
+        },
+      ]}
+    />
   );
 }
 
@@ -446,7 +577,10 @@ function TimeInput({
       keyboardType="numbers-and-punctuation"
       maxLength={5}
       onChangeText={onChangeText}
-      style={[styles.timeInput, { borderColor: theme.primary }]}
+      style={[
+        styles.timeInput,
+        { borderColor: theme.variant === "blackYellow" ? "#000000" : theme.primary },
+      ]}
       value={value}
     />
   );
@@ -462,6 +596,10 @@ function ItemSettings({
   onUpdateTasks: (tasks: Task[]) => void;
 }) {
   const sortedTasks = [...tasks].sort(byOrder);
+  const isBlackYellow = theme.variant === "blackYellow";
+  const { width } = useWindowDimensions();
+  const titleInputRefs = useRef<Record<string, TextInput | null>>({});
+  const maxTitleInputWidth = Math.max(96, Math.min(220, width - 170));
 
   const updateTask = (taskId: string, patch: Partial<Task>) => {
     onUpdateTasks(tasks.map((task) => (task.id === taskId ? { ...task, ...patch } : task)));
@@ -529,18 +667,58 @@ function ItemSettings({
   };
 
   return (
-    <View style={styles.itemsWrap}>
-      <ScrollView contentContainerStyle={styles.itemsList}>
+    <View
+      style={[
+        styles.itemsWrap,
+        isBlackYellow && styles.blackYellowContentWidth,
+        { backgroundColor: theme.settingsBackground },
+      ]}
+    >
+      <ScrollView
+        contentContainerStyle={[
+          styles.itemsList,
+          isBlackYellow && styles.blackYellowItemsList,
+        ]}
+      >
         {sortedTasks.map((task, index) => (
-          <View key={task.id} style={[styles.itemCard, { borderColor: theme.primary }]}>
+          <View
+            key={task.id}
+            style={[
+              styles.itemCard,
+              isBlackYellow && styles.blackYellowItemCard,
+              {
+                backgroundColor: theme.itemCardBackground,
+                borderColor: theme.primary,
+              },
+            ]}
+          >
             <View style={styles.itemTop}>
               <View style={styles.itemTitleWrap}>
                 <TextInput
+                  ref={(input) => {
+                    titleInputRefs.current[task.id] = input;
+                  }}
                   value={task.title}
                   onChangeText={(title) => updateTask(task.id, { title })}
-                  style={[styles.itemTitleInput, { color: theme.text }]}
+                  style={[
+                    styles.itemTitleInput,
+                    {
+                      color: theme.text,
+                      width: Math.min(
+                        maxTitleInputWidth,
+                        Math.max(72, task.title.length * 22 + 12),
+                      ),
+                    },
+                  ]}
                 />
-                <Ionicons name="pencil" size={18} color={theme.primary} />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${task.title}を編集`}
+                  hitSlop={8}
+                  onPress={() => titleInputRefs.current[task.id]?.focus()}
+                >
+                  <Ionicons name="pencil" size={18} color={theme.primary} />
+                </Pressable>
               </View>
               <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
                 <Text style={[styles.deleteText, { color: theme.text }]}>削除</Text>
@@ -553,6 +731,7 @@ function ItemSettings({
                   active={task.days.includes(day)}
                   label={DAY_LABELS[day]}
                   theme={theme}
+                  fill
                   onPress={() => toggleDay(task, day)}
                 />
               ))}
@@ -596,9 +775,9 @@ function ItemSettings({
         accessibilityRole="button"
         accessibilityLabel="タスクを追加"
         onPress={addTask}
-        style={[styles.addButton, { backgroundColor: theme.primary }]}
+        style={[styles.addButton, { backgroundColor: theme.addButtonBackground }]}
       >
-        <Ionicons name="add" size={44} color="#FFFFFF" />
+        <Ionicons name="add" size={44} color={theme.addButtonIcon} />
       </Pressable>
     </View>
   );
@@ -606,29 +785,43 @@ function ItemSettings({
 
 function ToggleChip({
   active,
+  fill = false,
   label,
   theme,
   onPress,
 }: {
   active: boolean;
+  fill?: boolean;
   label: string;
   theme: ReturnType<typeof buildTheme>;
   onPress: () => void;
 }) {
+  const isBlackYellow = theme.variant === "blackYellow";
+
   return (
     <Pressable
       onPress={onPress}
       style={[
         styles.toggleChip,
+        fill && styles.fillToggleChip,
         {
-          backgroundColor: active ? theme.primary : "#FFFFFF",
-          borderColor: theme.primary,
-          borderWidth: active ? 0 : 1,
+          backgroundColor: active ? theme.primary : theme.chipInactiveBackground,
+          borderColor: isBlackYellow
+            ? theme.chipInactiveBorder
+            : active
+              ? theme.primary
+              : theme.chipInactiveBorder,
+          borderWidth: active && !isBlackYellow ? 0 : 1,
           borderStyle: active ? "solid" : "dashed",
         },
       ]}
     >
-      <Text style={[styles.toggleText, { color: active ? theme.softText : theme.text }]}>
+      <Text
+        style={[
+          styles.toggleText,
+          { color: active ? theme.chipActiveText : theme.text },
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -656,12 +849,24 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 24,
   },
+  blackYellowContentWidth: {
+    alignSelf: "center",
+    maxWidth: 400,
+    width: "100%",
+  },
   appTitle: {
     flex: 1,
     color: "#FFFFFF",
     fontSize: 18,
     fontWeight: "700",
     marginRight: 12,
+  },
+  blackYellowAppTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+  },
+  blackYellowSettingsIcon: {
+    opacity: 0.4,
   },
   iconButton: {
     width: 44,
@@ -674,17 +879,25 @@ const styles = StyleSheet.create({
     height: 64,
     marginBottom: -15,
     zIndex: 2,
-    backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
+  blackYellowResetBand: {
+    marginBottom: 0,
+    paddingRight: 0,
+  },
+  resetButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingBottom: 4,
+  },
   resetText: {
     fontSize: 16,
     fontWeight: "600",
-    paddingBottom: 4,
   },
   remainingPill: {
     height: 40,
@@ -707,6 +920,31 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     lineHeight: 34,
+  },
+  blackYellowRemaining: {
+    height: 36,
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  blackYellowRemainingWedge: {
+    width: 0,
+    height: 0,
+    borderBottomWidth: 36,
+    borderLeftWidth: 21,
+    borderBottomColor: "#000000",
+    borderLeftColor: "transparent",
+    borderStyle: "solid",
+  },
+  blackYellowRemainingBody: {
+    height: 36,
+    minWidth: 74,
+    paddingLeft: 4,
+    paddingRight: 20,
+    paddingVertical: 4,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 4,
   },
   zigzag: {
     height: 28,
@@ -734,6 +972,10 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     gap: 16,
   },
+  blackYellowTaskList: {
+    paddingTop: 16,
+    gap: 24,
+  },
   empty: {
     minHeight: 180,
     alignItems: "center",
@@ -746,6 +988,9 @@ const styles = StyleSheet.create({
   settingsScreen: {
     flex: 1,
     backgroundColor: "#FFFFFF",
+  },
+  blackYellowSettingsScreen: {
+    alignItems: "center",
   },
   settingsHeader: {
     height: 48,
@@ -775,12 +1020,12 @@ const styles = StyleSheet.create({
   settingsBody: {
     flex: 1,
   },
-  soundCredit: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    fontSize: 12,
-    opacity: 0.6,
-    textAlign: "right",
+  settingsBodyContent: {
+    paddingTop: 8,
+  },
+  blackYellowSettingsBodyContent: {
+    paddingHorizontal: 8,
+    paddingBottom: 8,
   },
   settingRow: {
     minHeight: 72,
@@ -790,6 +1035,9 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 24,
     paddingVertical: 16,
+  },
+  blackYellowSettingSection: {
+    borderBottomWidth: 2,
   },
   settingLabel: {
     fontSize: 16,
@@ -840,6 +1088,22 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
+    overflow: "hidden",
+  },
+  blackYellowSwatch: {
+    backgroundColor: "#9FD80F",
+  },
+  blackYellowSwatchTriangle: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: 0,
+    height: 0,
+    borderTopWidth: 40,
+    borderRightWidth: 40,
+    borderTopColor: "#000000",
+    borderRightColor: "transparent",
+    borderStyle: "solid",
   },
   itemsWrap: {
     flex: 1,
@@ -847,10 +1111,17 @@ const styles = StyleSheet.create({
   itemsList: {
     paddingBottom: 96,
   },
+  blackYellowItemsList: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
   itemCard: {
     borderBottomWidth: 1,
     padding: 24,
     gap: 12,
+  },
+  blackYellowItemCard: {
+    borderBottomWidth: 2,
   },
   itemTop: {
     flexDirection: "row",
@@ -865,7 +1136,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   itemTitleInput: {
-    flex: 1,
     minHeight: 36,
     padding: 0,
     fontSize: 20,
@@ -877,6 +1147,7 @@ const styles = StyleSheet.create({
   },
   dayGrid: {
     flexDirection: "row",
+    width: "100%",
     gap: 8,
   },
   periodRow: {
@@ -896,6 +1167,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  fillToggleChip: {
+    flex: 1,
+    minWidth: 0,
   },
   toggleText: {
     fontSize: 20,

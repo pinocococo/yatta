@@ -21,18 +21,33 @@ export function SegmentTabs<T extends string>({
   theme,
   onChange,
 }: Props<T>) {
+  const isBlackYellow = theme.variant === "blackYellow";
+
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.primary }]}>
+    <View
+      style={[
+        styles.wrap,
+        isBlackYellow && styles.blackYellowWrap,
+        { backgroundColor: theme.headerBackground },
+      ]}
+    >
       {tabs.map((tab, index) => {
         const active = tab.key === activeKey;
+        const showBadge =
+          typeof tab.count === "number" &&
+          tab.count > 0 &&
+          !(isBlackYellow && active);
         return (
           <Pressable
             key={tab.key}
             onPress={() => onChange(tab.key)}
             style={[
               styles.tab,
+              isBlackYellow && styles.blackYellowTab,
               {
-                backgroundColor: active ? "#FFFFFF" : theme.background,
+                backgroundColor: active
+                  ? theme.tabActiveBackground
+                  : theme.tabInactiveBackground,
                 borderColor: theme.primary,
                 borderRightWidth: index === tabs.length - 1 ? 0 : 2,
                 borderBottomWidth: active ? 0 : 2,
@@ -42,14 +57,24 @@ export function SegmentTabs<T extends string>({
             <Text
               style={[
                 styles.tabText,
-                { color: theme.text, fontSize: active ? 20 : 16 },
+                {
+                  color: active ? theme.tabActiveText : theme.tabInactiveText,
+                  fontSize: active ? 20 : 16,
+                },
               ]}
             >
               {tab.label}
             </Text>
-            {typeof tab.count === "number" && tab.count > 0 ? (
-              <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-                <Text style={styles.badgeText}>{tab.count}</Text>
+            {showBadge ? (
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: theme.tabBadgeBackground },
+                ]}
+              >
+                <Text style={[styles.badgeText, { color: theme.tabBadgeText }]}>
+                  {tab.count}
+                </Text>
               </View>
             ) : null}
           </Pressable>
@@ -65,6 +90,10 @@ const styles = StyleSheet.create({
     height: 48,
     width: "100%",
   },
+  blackYellowWrap: {
+    backgroundColor: "#000000",
+    maxWidth: 400,
+  },
   tab: {
     flex: 1,
     minWidth: 0,
@@ -74,6 +103,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
     gap: 4,
+  },
+  blackYellowTab: {
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
   },
   tabText: {
     fontWeight: "600",

@@ -1,4 +1,5 @@
 import { getCompletionDateKey } from "@/lib/date";
+import { normalizeThemeColor } from "@/lib/theme";
 import { keyValueStore } from "@/storage/keyValueStore";
 import { CompletionState, YattaData } from "@/types/yatta";
 import { defaultSettings, defaultTasks } from "@/storage/defaults";
@@ -26,7 +27,11 @@ export const loadYattaData = async (): Promise<YattaData> => {
 
   try {
     const parsed = JSON.parse(raw) as Partial<YattaData>;
-    const settings = { ...defaultSettings, ...parsed.settings };
+    const settings = {
+      ...defaultSettings,
+      ...parsed.settings,
+      themeColor: normalizeThemeColor(parsed.settings?.themeColor),
+    };
     const today = getCompletionDateKey(settings);
     const storedCompletion = parsed.completion;
     return {
