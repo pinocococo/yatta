@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -37,6 +38,8 @@ import {
 
 type Screen = "tasks" | "settings";
 type SettingsTab = "basic" | "items";
+
+const blueWaveImage = require("../assets/wave-blue.png");
 
 const freshCompletion = (settings: AppSettings): CompletionState => ({
   date: getCompletionDateKey(settings),
@@ -79,8 +82,10 @@ const normalizeTime = (value: string) =>
     .replace(/^(\d{2})(\d)/, "$1:$2")
     .slice(0, 5);
 
-const formatHeaderTitle = (date = new Date()) =>
-  `${date.getMonth() + 1}月${date.getDate()}日(${DAY_LABELS[date.getDay()]})のYatta!`;
+const formatDatePart = (value: number) => String(value);
+
+const formatClockTime = (date: Date) =>
+  `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
 export default function YattaApp() {
   const [data, setData] = useState<YattaData | null>(null);
@@ -265,12 +270,15 @@ function TaskListScreen({
 }) {
   const { width } = useWindowDimensions();
   const [isTaskSwipeActive, setTaskSwipeActive] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const isBlackYellow = theme.variant === "blackYellow";
   const isTablet = width >= 768;
-  const zigzagCount = Math.max(1, Math.round(width / 28.284));
-  const zigzagUnit = width / zigzagCount;
-  const zigzagSquare = zigzagUnit / Math.SQRT2;
-  const headerTitle = isBlackYellow ? "YATTA!" : formatHeaderTitle();
+  const isCompactHeader = width < 360;
+
+  useEffect(() => {
+    const intervalId = setInterval(() => setNow(new Date()), 30 * 1000);
+    return () => clearInterval(intervalId);
+  }, []);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
@@ -287,9 +295,15 @@ function TaskListScreen({
             isBlackYellow && styles.blackYellowAppTitle,
             { color: theme.headerText },
           ]}
+          adjustsFontSizeToFit
+          minimumFontScale={0.9}
           numberOfLines={1}
         >
-          {headerTitle}
+          <HeaderDateText
+            date={now}
+            isBlackYellow={isBlackYellow}
+            isCompact={isCompactHeader}
+          />
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -326,7 +340,7 @@ function TaskListScreen({
         ]}
       >
         <Pressable onPress={onReset} hitSlop={10} style={styles.resetButton}>
-          <Ionicons name="refresh" size={isBlackYellow ? 24 : 19} color={theme.resetText} />
+          <Ionicons name="refresh" size={24} color={theme.resetText} />
           <Text style={[styles.resetText, { color: theme.resetText }]}>
             リセットする
           </Text>
@@ -365,30 +379,11 @@ function TaskListScreen({
         )}
       </View>
       {isBlackYellow ? null : (
-        <View style={styles.zigzag} pointerEvents="none">
-          {Array.from({ length: zigzagCount }).map((_, index) => (
-            <View
-              key={index}
-              style={[
-                styles.toothSlot,
-                {
-                  width: zigzagUnit,
-                  height: zigzagUnit,
-                },
-              ]}
-            >
-              <View
-                style={[
-                  styles.tooth,
-                  {
-                    width: zigzagSquare,
-                    height: zigzagSquare,
-                    backgroundColor: theme.resetBandBackground,
-                  },
-                ]}
-              />
-            </View>
-          ))}
+        <View
+          style={[styles.wave, { backgroundColor: theme.background }]}
+          pointerEvents="none"
+        >
+          <Image source={blueWaveImage} resizeMode="stretch" style={styles.waveImage} />
         </View>
       )}
       <ScrollView
@@ -421,6 +416,35 @@ function TaskListScreen({
         ) : null}
       </ScrollView>
     </View>
+  );
+}
+
+function HeaderDateText({
+  date,
+  isBlackYellow,
+  isCompact,
+}: {
+  date: Date;
+  isBlackYellow: boolean;
+  isCompact: boolean;
+}) {
+  const month = formatDatePart(date.getMonth() + 1);
+  const day = formatDatePart(date.getDate());
+  const dayLabel = DAY_LABELS[date.getDay()];
+  const time = formatClockTime(date);
+  const largeSize = isCompact ? 20 : isBlackYellow ? 22 : 24;
+  const dateUnitSize = isCompact ? 16 : 18;
+
+  return (
+    <>
+      <Text style={[styles.headerLargeDatePart, { fontSize: largeSize }]}>{month}</Text>
+      <Text style={[styles.headerDateUnit, { fontSize: dateUnitSize }]}>月</Text>
+      <Text style={[styles.headerLargeDatePart, { fontSize: largeSize }]}>{day}</Text>
+      <Text style={[styles.headerDateUnit, { fontSize: dateUnitSize }]}>
+        日({dayLabel}){" "}
+      </Text>
+      <Text style={[styles.headerLargeDatePart, { fontSize: largeSize }]}>{time}</Text>
+    </>
   );
 }
 
@@ -970,12 +994,18 @@ const styles = StyleSheet.create({
   appTitle: {
     flex: 1,
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 0,
+    fontWeight: "600",
     marginRight: 12,
   },
   blackYellowAppTitle: {
-    fontSize: 20,
+    fontWeight: "600",
+  },
+  headerLargeDatePart: {
+    fontWeight: "600",
+  },
+  headerDateUnit: {
+    fontSize: 16,
     fontWeight: "600",
   },
   blackYellowSettingsIcon: {
@@ -989,68 +1019,76 @@ const styles = StyleSheet.create({
   },
   resetBand: {
     width: "100%",
-    height: 64,
-    marginBottom: -15,
+    height: 40,
+    marginBottom: 0,
     zIndex: 2,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingLeft: 24,
+    paddingRight: 0,
+    paddingVertical: 8,
   },
   blackYellowResetBand: {
-    marginBottom: 0,
-    paddingRight: 0,
+    height: 40,
+    alignItems: "center",
+    paddingVertical: 0,
   },
   resetButton: {
+    height: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    paddingBottom: 4,
   },
   resetText: {
     fontSize: 16,
     fontWeight: "600",
   },
   remainingPill: {
-    height: 40,
-    minWidth: 104,
-    borderRadius: 999,
-    paddingHorizontal: 16,
+    height: 42,
+    minWidth: 125,
+    borderTopLeftRadius: 9999,
+    borderBottomLeftRadius: 9999,
+    paddingLeft: 24,
+    paddingRight: 16,
+    paddingVertical: 4,
+    position: "absolute",
+    right: 0,
+    top: 9,
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "center",
+    justifyContent: "flex-end",
     gap: 4,
   },
   remainingSmall: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "600",
-    lineHeight: 24,
+    lineHeight: 25,
+    marginBottom: 1,
   },
   remainingBig: {
     color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "800",
-    lineHeight: 34,
+    fontSize: 32,
+    fontWeight: "700",
+    lineHeight: 32,
+    marginBottom: -2,
   },
   blackYellowRemaining: {
-    height: 36,
+    height: 40,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "stretch",
   },
   blackYellowRemainingWedge: {
-    width: 0,
-    height: 0,
-    borderBottomWidth: 36,
-    borderLeftWidth: 21,
-    borderBottomColor: "#000000",
-    borderLeftColor: "transparent",
-    borderStyle: "solid",
+    width: 46,
+    height: 40,
+    backgroundColor: "#000000",
+    transform: [{ skewX: "-30deg" }],
+    marginRight: -12,
   },
   blackYellowRemainingBody: {
-    height: 36,
-    minWidth: 74,
+    height: 40,
+    minWidth: 124,
     paddingLeft: 4,
     paddingRight: 20,
     paddingVertical: 4,
@@ -1059,21 +1097,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 4,
   },
-  zigzag: {
-    height: 28,
+  wave: {
+    height: 11,
     width: "100%",
     zIndex: 1,
-    flexDirection: "row",
     overflow: "hidden",
-    paddingHorizontal: 0,
   },
-  toothSlot: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tooth: {
-    backgroundColor: "#FFFFFF",
-    transform: [{ rotate: "45deg" }],
+  waveImage: {
+    width: "100%",
+    height: 11,
   },
   taskScroll: {
     width: "100%",
