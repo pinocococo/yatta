@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  AppState,
   Image,
   Pressable,
   ScrollView,
@@ -92,12 +93,31 @@ export default function YattaApp() {
   const [screen, setScreen] = useState<Screen>("tasks");
   const [period, setPeriod] = useState<Period>("morning");
   const [settingsTab, setSettingsTab] = useState<SettingsTab>("basic");
+  const screenRef = useRef(screen);
+  const currentClockPeriodRef = useRef<Period | null>(null);
+
+  const setPeriodToCurrentTime = (currentData: YattaData) => {
+    const activePeriod = getCurrentPeriod(currentData.settings);
+    const availablePeriods = getPeriodsWithTasksForDay(
+      currentData.tasks,
+      currentData.completion,
+    );
+    if (availablePeriods.length > 0) {
+      setPeriod(availablePeriods.includes(activePeriod) ? activePeriod : availablePeriods[0]);
+    } else {
+      setPeriod(activePeriod);
+    }
+    currentClockPeriodRef.current = activePeriod;
+  };
+
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
 
   useEffect(() => {
     loadYattaData().then((loaded) => {
-      const activePeriod = getCurrentPeriod(loaded.settings);
       setData(loaded);
-      setPeriod(activePeriod);
+      setPeriodToCurrentTime(loaded);
     });
   }, []);
 
@@ -146,20 +166,38 @@ export default function YattaApp() {
       return;
     }
     const syncCompletionDate = () => {
-      updateData((current) => {
-        const expectedDate = getCompletionDateKey(current.settings);
-        if (current.completion.date === expectedDate) {
-          return current;
-        }
-        return {
-          ...current,
-          completion: { date: expectedDate, completedTaskIds: [] },
-        };
-      });
-      setPeriod(getCurrentPeriod(data.settings));
+      const expectedDate = getCompletionDateKey(data.settings);
+      const nextData =
+        data.completion.date === expectedDate
+          ? data
+          : {
+              ...data,
+              completion: { date: expectedDate, completedTaskIds: [] },
+            };
+      if (nextData !== data) {
+        updateData(() => nextData);
+      }
+      const activePeriod = getCurrentPeriod(nextData.settings);
+      if (activePeriod !== currentClockPeriodRef.current && screenRef.current === "tasks") {
+        setPeriodToCurrentTime(nextData);
+        return;
+      }
+      currentClockPeriodRef.current = activePeriod;
     };
     const intervalId = setInterval(syncCompletionDate, 60 * 1000);
     return () => clearInterval(intervalId);
+  }, [data]);
+
+  useEffect(() => {
+    if (!data) {
+      return;
+    }
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        setPeriodToCurrentTime(data);
+      }
+    });
+    return () => subscription.remove();
   }, [data]);
 
   if (!data) {
@@ -221,7 +259,10 @@ export default function YattaApp() {
           settingsTab={settingsTab}
           setSettingsTab={setSettingsTab}
           theme={theme}
-          onBack={() => setScreen("tasks")}
+          onBack={() => {
+            setPeriodToCurrentTime(data);
+            setScreen("tasks");
+          }}
           onUpdateSettings={updateSettings}
           onUpdateTasks={(tasks) =>
             updateData((current) => ({
