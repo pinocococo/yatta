@@ -13,6 +13,8 @@ type Props<T extends string> = {
   activeKey: T;
   theme: Theme;
   onChange: (key: T) => void;
+  tabletTextBoost?: boolean;
+  uniformBottomBorder?: boolean;
 };
 
 export function SegmentTabs<T extends string>({
@@ -20,15 +22,19 @@ export function SegmentTabs<T extends string>({
   activeKey,
   theme,
   onChange,
+  tabletTextBoost = false,
+  uniformBottomBorder = false,
 }: Props<T>) {
   const isBlackYellow = theme.variant === "blackYellow";
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
+  const textBoost = tabletTextBoost && isTablet ? 4 : 0;
 
   return (
     <View
       style={[
         styles.wrap,
+        tabletTextBoost && isTablet && styles.tabletWrap,
         isBlackYellow && !isTablet && styles.blackYellowWrap,
         { backgroundColor: theme.headerBackground },
       ]}
@@ -52,7 +58,7 @@ export function SegmentTabs<T extends string>({
                   : theme.tabInactiveBackground,
                 borderColor: theme.primary,
                 borderRightWidth: index === tabs.length - 1 ? 0 : 2,
-                borderBottomWidth: active ? 0 : 2,
+                borderBottomWidth: uniformBottomBorder || !active ? 2 : 0,
               },
             ]}
           >
@@ -61,7 +67,7 @@ export function SegmentTabs<T extends string>({
                 styles.tabText,
                 {
                   color: active ? theme.tabActiveText : theme.tabInactiveText,
-                  fontSize: active ? 20 : 16,
+                  fontSize: (active ? 20 : 16) + textBoost,
                 },
               ]}
             >
@@ -71,10 +77,23 @@ export function SegmentTabs<T extends string>({
               <View
                 style={[
                   styles.badge,
-                  { backgroundColor: theme.tabBadgeBackground },
+                  {
+                    backgroundColor: theme.tabBadgeBackground,
+                    width: 24 + textBoost,
+                    height: 24 + textBoost,
+                  },
                 ]}
               >
-                <Text style={[styles.badgeText, { color: theme.tabBadgeText }]}>
+                <Text
+                  style={[
+                    styles.badgeText,
+                    {
+                      color: theme.tabBadgeText,
+                      fontSize: 16 + textBoost,
+                      lineHeight: 18 + textBoost,
+                    },
+                  ]}
+                >
                   {tab.count}
                 </Text>
               </View>
@@ -91,6 +110,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     height: 48,
     width: "100%",
+  },
+  tabletWrap: {
+    height: 56,
   },
   blackYellowWrap: {
     backgroundColor: "#000000",

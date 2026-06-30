@@ -584,7 +584,14 @@ export function TaskCard({
           ]}
         >
           <View style={[styles.cardInner, isTablet && styles.tabletCardInner]}>
-            <Text style={[styles.title, { color: theme.cardText }]} numberOfLines={1}>
+            <Text
+              style={[
+                styles.title,
+                isTablet && styles.tabletTitle,
+                { color: theme.cardText },
+              ]}
+              numberOfLines={1}
+            >
               {task.title}
             </Text>
           </View>
@@ -623,10 +630,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   tabletCard: {
-    minHeight: 80,
+    minHeight: 88,
   },
   blackYellowCard: {
-    borderWidth: 3,
+    borderWidth: 1,
     borderRadius: 0,
   },
   cardInner: {
@@ -636,10 +643,13 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   tabletCardInner: {
-    minHeight: 76,
+    minHeight: 84,
   },
   title: {
     fontSize: 24,
     fontWeight: "600",
+  },
+  tabletTitle: {
+    fontSize: 28,
   },
 });
