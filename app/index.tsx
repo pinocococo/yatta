@@ -850,7 +850,7 @@ function ItemSettings({
   const pendingAddedTaskIdRef = useRef<string | null>(null);
   const maxTitleInputWidth = Math.max(
     96,
-    Math.min(isTablet ? width - 260 : 220, width - 170),
+    Math.min(isTablet ? width - 226 : 254, width - 136),
   );
 
   useEffect(() => {
@@ -943,7 +943,6 @@ function ItemSettings({
         keyExtractor={(task) => task.id}
         onDragEnd={({ data: orderedTasks }) => reorderTasks(orderedTasks)}
         activationDistance={8}
-        dragItemOverflow
         autoscrollThreshold={80}
         autoscrollSpeed={80}
         containerStyle={[
@@ -993,9 +992,12 @@ function ItemSettings({
                         styles.itemTitleInput,
                         {
                           color: theme.text,
-                          width: Math.min(
-                            maxTitleInputWidth,
-                            Math.max(72, task.title.length * 22 + 12),
+                          width: Math.max(
+                            72,
+                            Math.min(
+                              maxTitleInputWidth - 24,
+                              task.title.length * 17 + 20,
+                            ),
                           ),
                         },
                       ]}
@@ -1009,9 +1011,26 @@ function ItemSettings({
                       <Ionicons name="pencil" size={18} color={theme.primary} />
                     </Pressable>
                   </View>
-                  <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
-                    <Text style={[styles.deleteText, { color: theme.text }]}>削除</Text>
-                  </Pressable>
+                  <View style={styles.itemActions}>
+                    <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
+                      <Text style={[styles.deleteText, { color: theme.text }]}>削除</Text>
+                    </Pressable>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`${task.title}を並べ替え`}
+                      activeOpacity={0.7}
+                      disabled={isActive}
+                      delayLongPress={120}
+                      hitSlop={8}
+                      onLongPress={drag}
+                      style={[
+                        styles.dragHandle,
+                        isTablet && styles.tabletDragHandle,
+                      ]}
+                    >
+                      <Ionicons name="reorder-three" size={isTablet ? 32 : 26} color={theme.text} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <View style={styles.scheduleMatrix}>
                   <View style={styles.scheduleHeaderRow}>
@@ -1044,19 +1063,6 @@ function ItemSettings({
                       </View>
                     );
                   })}
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={`${task.title}を並べ替え`}
-                    activeOpacity={0.7}
-                    disabled={isActive}
-                    onPressIn={drag}
-                    style={[
-                      styles.dragHandle,
-                      isTablet && styles.tabletDragHandle,
-                    ]}
-                  >
-                    <Ionicons name="reorder-three" size={isTablet ? 32 : 26} color={theme.text} />
-                  </TouchableOpacity>
                 </View>
               </View>
             </ShadowDecorator>
@@ -1073,7 +1079,7 @@ function ItemSettings({
           { backgroundColor: theme.addButtonBackground },
         ]}
       >
-        <Ionicons name="add" size={isTablet ? 32 : 44} color={theme.addButtonIcon} />
+        <Ionicons name="add" size={isTablet ? 64 : 44} color={theme.addButtonIcon} />
       </Pressable>
     </View>
   );
@@ -1474,10 +1480,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemsList: {
-    paddingBottom: 96,
+    paddingBottom: 0,
   },
   tabletItemsList: {
-    paddingBottom: 112,
+    paddingBottom: 0,
   },
   blackYellowItemsList: {
     paddingHorizontal: 0,
@@ -1485,8 +1491,10 @@ const styles = StyleSheet.create({
   },
   itemCard: {
     borderBottomWidth: 1,
-    padding: 24,
-    gap: 12,
+    paddingTop: 8,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    gap: 10,
   },
   dragActiveItemCard: {
     zIndex: 20,
@@ -1501,44 +1509,54 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 16,
+    gap: 12,
   },
   itemTitleWrap: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 3,
+    minWidth: 0,
   },
   itemTitleInput: {
+    flexShrink: 1,
     minHeight: 36,
     padding: 0,
     fontSize: 20,
     fontWeight: "600",
+    lineHeight: 28,
+    textAlignVertical: "center",
+    transform: [{ translateY: -2 }],
   },
   deleteText: {
     fontSize: 16,
     fontWeight: "600",
   },
+  itemActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 44,
+    marginRight: -10,
+  },
   scheduleMatrix: {
-    position: "relative",
-    gap: 6,
-    paddingBottom: 34,
+    gap: 7,
   },
   scheduleHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 2,
   },
   scheduleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 2,
   },
   schedulePeriodLabelSpacer: {
-    width: 32,
+    width: 20,
   },
   schedulePeriodLabel: {
-    width: 32,
+    width: 20,
     fontSize: 16,
     fontWeight: "700",
     textAlign: "center",
@@ -1553,27 +1571,24 @@ const styles = StyleSheet.create({
   matrixCell: {
     flex: 1,
     minWidth: 0,
-    height: 34,
+    height: 36,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
   },
   dragHandle: {
-    position: "absolute",
-    right: 0,
-    bottom: 0,
     alignItems: "center",
     justifyContent: "center",
-    width: 44,
+    width: 34,
     height: 44,
   },
   tabletDragHandle: {
-    width: 52,
+    width: 42,
     height: 52,
   },
   addButton: {
     position: "absolute",
-    right: 24,
+    left: 24,
     bottom: 24,
     width: 72,
     height: 72,
@@ -1587,8 +1602,8 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   tabletAddButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
   },
 });
