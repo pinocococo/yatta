@@ -1,11 +1,13 @@
 export type Period = "morning" | "daytime" | "night";
 export type ThemeColor = "blue" | "blackYellow";
+export type TaskSchedule = Record<Period, number[]>;
 
 export type Task = {
   id: string;
   title: string;
   days: number[];
   periods: Period[];
+  schedule?: TaskSchedule;
   order: number;
 };
 
