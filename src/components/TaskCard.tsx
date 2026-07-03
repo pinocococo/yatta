@@ -19,6 +19,8 @@ import { Period, Task, Theme } from "@/types/yatta";
 const blowAwaySound = require("../../assets/audio/blow-away-b4c4.mp3");
 const flySwishSound = require("../../assets/audio/fly-swish.mp3");
 const spinSwishSound = require("../../assets/audio/spin-swish-long.mp3");
+const slingShrinkSound = require("../../assets/audio/sling-shrink.mp3");
+const slingReleaseSound = require("../../assets/audio/sling-release.mp3");
 
 const SWIPE_ACTIVATION_DISTANCE = 12;
 const SWIPE_COMPLETE_DISTANCE = 92;
@@ -53,6 +55,15 @@ const FLY_SWIPE_ANIMATION_DURATION_MS = 170;
 const FLY_SWISH_RATE =
   FLY_SWISH_SOURCE_DURATION_MS / FLY_SWIPE_ANIMATION_DURATION_MS;
 const BLOW_AWAY_RATE = 1.2;
+const SLING_SHRINK_SOURCE_DURATION_MS = 261.224;
+const SLING_SHRINK_ANIMATION_DURATION_MS = 130;
+const SLING_SHRINK_RATE =
+  SLING_SHRINK_SOURCE_DURATION_MS / SLING_SHRINK_ANIMATION_DURATION_MS;
+const SLING_RELEASE_SOURCE_DURATION_MS = 1332.245;
+const SLING_RELEASE_ANIMATION_DURATION_MS = 210;
+const SLING_RELEASE_RATE =
+  SLING_RELEASE_SOURCE_DURATION_MS / SLING_RELEASE_ANIMATION_DURATION_MS;
+const SLING_RELEASE_DELAY_MS = 110;
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
 
@@ -62,6 +73,10 @@ let preparedFlySwishSound: Audio.Sound | null = null;
 let flySwishLoadPromise: Promise<Audio.Sound | null> | null = null;
 let preparedSpinSwishSound: Audio.Sound | null = null;
 let spinSwishLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedSlingShrinkSound: Audio.Sound | null = null;
+let slingShrinkLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedSlingReleaseSound: Audio.Sound | null = null;
+let slingReleaseLoadPromise: Promise<Audio.Sound | null> | null = null;
 
 const loadBlowAwaySound = () => {
   if (preparedBlowAwaySound) {
@@ -142,6 +157,60 @@ const loadSpinSwishSound = () => {
     });
 
   return spinSwishLoadPromise;
+};
+
+const loadSlingShrinkSound = () => {
+  if (preparedSlingShrinkSound) {
+    return Promise.resolve(preparedSlingShrinkSound);
+  }
+  if (slingShrinkLoadPromise) {
+    return slingShrinkLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  slingShrinkLoadPromise = sound
+    .loadAsync(slingShrinkSound, {
+      rate: SLING_SHRINK_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedSlingShrinkSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      slingShrinkLoadPromise = null;
+      return null;
+    });
+
+  return slingShrinkLoadPromise;
+};
+
+const loadSlingReleaseSound = () => {
+  if (preparedSlingReleaseSound) {
+    return Promise.resolve(preparedSlingReleaseSound);
+  }
+  if (slingReleaseLoadPromise) {
+    return slingReleaseLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  slingReleaseLoadPromise = sound
+    .loadAsync(slingReleaseSound, {
+      rate: SLING_RELEASE_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedSlingReleaseSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      slingReleaseLoadPromise = null;
+      return null;
+    });
+
+  return slingReleaseLoadPromise;
 };
 
 const playBlowAwaySound = async () => {
@@ -252,6 +321,53 @@ const playSpinSwishSound = async () => {
   }
 };
 
+const playPreparedSound = async (
+  loadSound: () => Promise<Audio.Sound | null>,
+  source: number,
+  rate: number,
+) => {
+  try {
+    const preparedSound = await loadSound();
+    if (preparedSound) {
+      await preparedSound.stopAsync().catch(() => undefined);
+      await preparedSound.setPositionAsync(0);
+      await preparedSound.setRateAsync(rate, false);
+      await preparedSound.setVolumeAsync(1);
+      await preparedSound.playAsync();
+      return;
+    }
+
+    const { sound } = await Audio.Sound.createAsync(source, {
+      shouldPlay: true,
+      rate,
+      shouldCorrectPitch: false,
+      volume: 1,
+    });
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        void sound.unloadAsync().catch(() => undefined);
+      }
+    });
+  } catch {
+    // Completion should still work if the sound cannot be played.
+  }
+};
+
+const playSlingShotSounds = () => {
+  void playPreparedSound(
+    loadSlingShrinkSound,
+    slingShrinkSound,
+    SLING_SHRINK_RATE,
+  );
+  setTimeout(() => {
+    void playPreparedSound(
+      loadSlingReleaseSound,
+      slingReleaseSound,
+      SLING_RELEASE_RATE,
+    );
+  }, SLING_RELEASE_DELAY_MS);
+};
+
 type Props = {
   task: Task;
   period: Period;
@@ -295,6 +411,8 @@ export function TaskCard({
     void loadBlowAwaySound();
     void loadFlySwishSound();
     void loadSpinSwishSound();
+    void loadSlingShrinkSound();
+    void loadSlingReleaseSound();
   }, [completionEffectsEnabled]);
 
   const completeTask = (completeAnimationType: CompletionAnimationType) => {
@@ -318,6 +436,12 @@ export function TaskCard({
       }
       if (completeAnimationType === "swipeSpinOut") {
         void playSpinSwishSound();
+      }
+      if (
+        completeAnimationType === "slingShot" ||
+        completeAnimationType === "slingShotLeft"
+      ) {
+        playSlingShotSounds();
       }
     }
     playCompleteAnimation(completeAnimationType, {

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,14 +12,10 @@ import {
   Switch,
   Text,
   TextInput,
-  TouchableOpacity,
   useWindowDimensions,
   View,
 } from "react-native";
-import DraggableFlatList, {
-  ScaleDecorator,
-  ShadowDecorator,
-} from "react-native-draggable-flatlist";
+import Animated, { LinearTransition, ReduceMotion } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { SegmentTabs } from "@/components/SegmentTabs";
@@ -47,6 +43,10 @@ type Screen = "tasks" | "settings";
 type SettingsTab = "basic" | "items";
 
 const blueWaveImage = require("../assets/wave-blue.png");
+
+const reorderLayoutTransition = LinearTransition.duration(180).reduceMotion(
+  ReduceMotion.Never,
+);
 
 const freshCompletion = (settings: AppSettings): CompletionState => ({
   date: getCompletionDateKey(settings),
@@ -841,17 +841,14 @@ function ItemSettings({
   theme: ReturnType<typeof buildTheme>;
   onUpdateTasks: (tasks: Task[]) => void;
 }) {
-  const sortedTasks = [...tasks].sort(byOrder);
+  const sortedTasks = useMemo(() => [...tasks].sort(byOrder), [tasks]);
   const isBlackYellow = theme.variant === "blackYellow";
   const { width } = useWindowDimensions();
   const isTablet = width >= 768;
   const titleInputRefs = useRef<Record<string, TextInput | null>>({});
-  const scrollRef = useRef<any>(null);
+  const scrollRef = useRef<ScrollView | null>(null);
   const pendingAddedTaskIdRef = useRef<string | null>(null);
-  const maxTitleInputWidth = Math.max(
-    96,
-    Math.min(isTablet ? width - 226 : 254, width - 136),
-  );
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pendingAddedTaskIdRef.current) {
@@ -864,38 +861,47 @@ function ItemSettings({
     return () => clearTimeout(timer);
   }, [sortedTasks.length]);
 
-  const updateTask = (taskId: string, patch: Partial<Task>) => {
-    onUpdateTasks(tasks.map((task) => (task.id === taskId ? { ...task, ...patch } : task)));
-  };
+  const updateTask = useCallback(
+    (taskId: string, patch: Partial<Task>) => {
+      onUpdateTasks(tasks.map((task) => (task.id === taskId ? { ...task, ...patch } : task)));
+    },
+    [onUpdateTasks, tasks],
+  );
 
-  const toggleSchedule = (task: Task, period: Period, day: number) => {
-    const schedule = getTaskSchedule(task);
-    const days = schedule[period].includes(day)
-      ? schedule[period].filter((value) => value !== day)
-      : uniqueDays([...schedule[period], day]);
-    const nextSchedule = {
-      ...schedule,
-      [period]: days,
-    };
-    updateTask(task.id, {
-      schedule: nextSchedule,
-      days: getTaskDays(nextSchedule),
-      periods: getTaskPeriods(nextSchedule),
-    });
-  };
+  const toggleSchedule = useCallback(
+    (task: Task, period: Period, day: number) => {
+      const schedule = getTaskSchedule(task);
+      const days = schedule[period].includes(day)
+        ? schedule[period].filter((value) => value !== day)
+        : uniqueDays([...schedule[period], day]);
+      const nextSchedule = {
+        ...schedule,
+        [period]: days,
+      };
+      updateTask(task.id, {
+        schedule: nextSchedule,
+        days: getTaskDays(nextSchedule),
+        periods: getTaskPeriods(nextSchedule),
+      });
+    },
+    [updateTask],
+  );
 
-  const deleteTask = (taskId: string) => {
-    Alert.alert("削除しますか？", "このタスクを項目設定から削除します。", [
-      { text: "キャンセル", style: "cancel" },
-      {
-        text: "削除",
-        style: "destructive",
-        onPress: () => onUpdateTasks(tasks.filter((task) => task.id !== taskId)),
-      },
-    ]);
-  };
+  const deleteTask = useCallback(
+    (taskId: string) => {
+      Alert.alert("削除しますか？", "このタスクを項目設定から削除します。", [
+        { text: "キャンセル", style: "cancel" },
+        {
+          text: "削除",
+          style: "destructive",
+          onPress: () => onUpdateTasks(tasks.filter((task) => task.id !== taskId)),
+        },
+      ]);
+    },
+    [onUpdateTasks, tasks],
+  );
 
-  const addTask = () => {
+  const addTask = useCallback(() => {
     const maxOrder = tasks.reduce((max, task) => Math.max(max, task.order), 0);
     const nextTaskId = `task-${Date.now()}`;
     pendingAddedTaskIdRef.current = nextTaskId;
@@ -914,19 +920,31 @@ function ItemSettings({
         order: maxOrder + 1,
       },
     ]);
-  };
+  }, [onUpdateTasks, tasks]);
 
-  const reorderTasks = (orderedTasks: Task[]) => {
-    const orderById = new Map(
-      orderedTasks.map((task, index) => [task.id, index + 1]),
-    );
-    onUpdateTasks(
-      tasks.map((task) => ({
-        ...task,
-        order: orderById.get(task.id) ?? task.order,
-      })),
-    );
-  };
+  const moveTask = useCallback(
+    (taskId: string, direction: -1 | 1) => {
+      const currentIndex = sortedTasks.findIndex((task) => task.id === taskId);
+      const targetIndex = currentIndex + direction;
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= sortedTasks.length) {
+        return;
+      }
+
+      const orderedTasks = [...sortedTasks];
+      const [movingTask] = orderedTasks.splice(currentIndex, 1);
+      orderedTasks.splice(targetIndex, 0, movingTask);
+      const orderById = new Map(
+        orderedTasks.map((task, index) => [task.id, index + 1]),
+      );
+      onUpdateTasks(
+        tasks.map((task) => ({
+          ...task,
+          order: orderById.get(task.id) ?? task.order,
+        })),
+      );
+    },
+    [onUpdateTasks, sortedTasks, tasks],
+  );
 
   return (
     <View
@@ -937,15 +955,9 @@ function ItemSettings({
         { backgroundColor: theme.settingsBackground },
       ]}
     >
-      <DraggableFlatList
+      <ScrollView
         ref={scrollRef}
-        data={sortedTasks}
-        keyExtractor={(task) => task.id}
-        onDragEnd={({ data: orderedTasks }) => reorderTasks(orderedTasks)}
-        activationDistance={8}
-        autoscrollThreshold={80}
-        autoscrollSpeed={80}
-        containerStyle={[
+        style={[
           styles.itemsScroller,
           isBlackYellow && styles.blackYellowSettingsScroller,
         ]}
@@ -954,134 +966,212 @@ function ItemSettings({
           isTablet && styles.tabletItemsList,
           isBlackYellow && styles.blackYellowItemsList,
         ]}
-        renderPlaceholder={({ item }) => (
-          <View
-            style={[
-              styles.itemCard,
-              styles.dragPlaceholderCard,
-              isBlackYellow && styles.blackYellowItemCard,
-              {
-                borderColor: theme.primary,
-              },
-            ]}
-          />
-        )}
-        renderItem={({ item: task, drag, isActive }) => (
-          <ScaleDecorator activeScale={1.015}>
-            <ShadowDecorator elevation={isActive ? 14 : 0} opacity={0.18} radius={12}>
-              <View
-                style={[
-                  styles.itemCard,
-                  isBlackYellow && styles.blackYellowItemCard,
-                  isActive && styles.dragActiveItemCard,
-                  {
-                    backgroundColor: theme.itemCardBackground,
-                    borderColor: theme.primary,
-                  },
-                ]}
-              >
-                <View style={styles.itemTop}>
-                  <View style={styles.itemTitleWrap}>
-                    <TextInput
-                      ref={(input) => {
-                        titleInputRefs.current[task.id] = input;
-                      }}
-                      value={task.title}
-                      onChangeText={(title) => updateTask(task.id, { title })}
-                      style={[
-                        styles.itemTitleInput,
-                        {
-                          color: theme.text,
-                          width: Math.max(
-                            72,
-                            Math.min(
-                              maxTitleInputWidth - 24,
-                              task.title.length * 17 + 20,
-                            ),
-                          ),
-                        },
-                      ]}
-                    />
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`${task.title}を編集`}
-                      hitSlop={8}
-                      onPress={() => titleInputRefs.current[task.id]?.focus()}
-                    >
-                      <Ionicons name="pencil" size={18} color={theme.primary} />
-                    </Pressable>
-                  </View>
-                  <View style={styles.itemActions}>
-                    <Pressable onPress={() => deleteTask(task.id)} hitSlop={8}>
-                      <Text style={[styles.deleteText, { color: theme.text }]}>削除</Text>
-                    </Pressable>
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityLabel={`${task.title}を並べ替え`}
-                      activeOpacity={0.7}
-                      disabled={isActive}
-                      delayLongPress={120}
-                      hitSlop={8}
-                      onLongPress={drag}
-                      style={[
-                        styles.dragHandle,
-                        isTablet && styles.tabletDragHandle,
-                      ]}
-                    >
-                      <Ionicons name="reorder-three" size={isTablet ? 32 : 26} color={theme.text} />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                <View style={styles.scheduleMatrix}>
-                  <View style={styles.scheduleHeaderRow}>
-                    <View style={styles.schedulePeriodLabelSpacer} />
-                    {DAY_ORDER.map((day) => (
-                      <Text
-                        key={day}
-                        style={[styles.scheduleDayLabel, { color: theme.text }]}
-                      >
-                        {DAY_LABELS[day]}
-                      </Text>
-                    ))}
-                  </View>
-                  {PERIODS.map((key) => {
-                    const schedule = getTaskSchedule(task);
-                    return (
-                      <View key={key} style={styles.scheduleRow}>
-                        <Text style={[styles.schedulePeriodLabel, { color: theme.text }]}>
-                          {PERIOD_SETTING_LABELS[key]}
-                        </Text>
-                        {DAY_ORDER.map((day) => (
-                          <MatrixToggleCell
-                            key={`${key}-${day}`}
-                            active={schedule[key].includes(day)}
-                            theme={theme}
-                            disabled={isActive}
-                            onPress={() => toggleSchedule(task, key, day)}
-                          />
-                        ))}
-                      </View>
-                    );
-                  })}
-                </View>
-              </View>
-            </ShadowDecorator>
-          </ScaleDecorator>
-        )}
-      />
+      >
+        {sortedTasks.map((task, index) => {
+          return (
+            <Animated.View
+              key={task.id}
+              layout={reorderLayoutTransition}
+              style={[
+                styles.itemCard,
+                isBlackYellow && styles.blackYellowItemCard,
+                {
+                  backgroundColor: theme.settingsPanelBackground,
+                  borderColor: theme.primary,
+                },
+              ]}
+            >
+              <ItemScheduleCardContent
+                task={task}
+                theme={theme}
+                isTablet={isTablet}
+                disabled={false}
+                isEditing={editingTaskId === task.id}
+                canMoveUp={index > 0}
+                canMoveDown={index < sortedTasks.length - 1}
+                titleInputRef={(input) => {
+                  titleInputRefs.current[task.id] = input;
+                }}
+                onChangeTitle={(title) => updateTask(task.id, { title })}
+                onEditTitle={() => {
+                  setEditingTaskId(task.id);
+                  requestAnimationFrame(() => titleInputRefs.current[task.id]?.focus());
+                }}
+                onBlurTitle={() => setEditingTaskId(null)}
+                onDelete={() => deleteTask(task.id)}
+                onMoveUp={() => moveTask(task.id, -1)}
+                onMoveDown={() => moveTask(task.id, 1)}
+                onToggleSchedule={(period, day) => toggleSchedule(task, period, day)}
+              />
+            </Animated.View>
+          );
+        })}
+      </ScrollView>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="タスクを追加"
+        accessibilityLabel="項目を追加"
         onPress={addTask}
         style={[
           styles.addButton,
           isTablet && styles.tabletAddButton,
-          { backgroundColor: theme.addButtonBackground },
+          { backgroundColor: theme.primary },
         ]}
       >
-        <Ionicons name="add" size={isTablet ? 64 : 44} color={theme.addButtonIcon} />
+        <Ionicons name="add" size={isTablet ? 64 : 46} color={theme.addButtonIcon} />
       </Pressable>
     </View>
+  );
+}
+
+function ItemScheduleCardContent({
+  task,
+  theme,
+  isTablet,
+  disabled,
+  isEditing,
+  titleInputRef,
+  onChangeTitle,
+  onEditTitle,
+  onBlurTitle,
+  onDelete,
+  onMoveUp,
+  onMoveDown,
+  onToggleSchedule,
+  canMoveUp,
+  canMoveDown,
+}: {
+  task: Task;
+  theme: ReturnType<typeof buildTheme>;
+  isTablet: boolean;
+  disabled: boolean;
+  isEditing: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+  titleInputRef: (input: TextInput | null) => void;
+  onChangeTitle: (title: string) => void;
+  onEditTitle: () => void;
+  onBlurTitle: () => void;
+  onDelete: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onToggleSchedule: (period: Period, day: number) => void;
+}) {
+  return (
+    <>
+      <View style={styles.itemTop}>
+        <View style={styles.itemTitleWrap}>
+          {isEditing ? (
+            <TextInput
+              ref={titleInputRef}
+              value={task.title}
+              editable={!disabled}
+              onBlur={onBlurTitle}
+              onChangeText={onChangeTitle}
+              style={[
+                styles.itemTitleInput,
+                {
+                  color: theme.text,
+                },
+              ]}
+            />
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${task.title}を編集`}
+              disabled={disabled}
+              onPress={onEditTitle}
+              style={styles.itemTitleDisplayWrap}
+            >
+              <Text
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={[styles.itemTitleDisplay, { color: theme.text }]}
+              >
+                {task.title}
+              </Text>
+            </Pressable>
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${task.title}を編集`}
+            disabled={disabled}
+            hitSlop={8}
+            onPress={onEditTitle}
+          >
+            <Ionicons name="pencil" size={18} color={theme.primary} />
+          </Pressable>
+        </View>
+        <View style={styles.itemActions}>
+          <Pressable disabled={disabled} onPress={onDelete} hitSlop={8}>
+            <Text style={[styles.deleteText, { color: theme.text }]}>削除</Text>
+          </Pressable>
+          <View style={styles.orderButtonGroup}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${task.title}を上に移動`}
+              accessibilityState={{ disabled: disabled || !canMoveUp }}
+              disabled={disabled || !canMoveUp}
+              hitSlop={8}
+              onPress={onMoveUp}
+              style={[
+                styles.orderButton,
+                isTablet && styles.tabletOrderButton,
+                (!canMoveUp || disabled) && styles.orderButtonDisabled,
+              ]}
+            >
+              <Ionicons name="chevron-up" size={isTablet ? 28 : 24} color={theme.text} />
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${task.title}を下に移動`}
+              accessibilityState={{ disabled: disabled || !canMoveDown }}
+              disabled={disabled || !canMoveDown}
+              hitSlop={8}
+              onPress={onMoveDown}
+              style={[
+                styles.orderButton,
+                isTablet && styles.tabletOrderButton,
+                (!canMoveDown || disabled) && styles.orderButtonDisabled,
+              ]}
+            >
+              <Ionicons name="chevron-down" size={isTablet ? 28 : 24} color={theme.text} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+      <View style={styles.scheduleMatrix}>
+        <View style={styles.scheduleHeaderRow}>
+          <View style={styles.schedulePeriodLabelSpacer} />
+          {DAY_ORDER.map((day) => (
+            <Text
+              key={day}
+              style={[styles.scheduleDayLabel, { color: theme.text }]}
+            >
+              {DAY_LABELS[day]}
+            </Text>
+          ))}
+        </View>
+        {PERIODS.map((key) => {
+          const schedule = getTaskSchedule(task);
+          return (
+            <View key={key} style={styles.scheduleRow}>
+              <Text style={[styles.schedulePeriodLabel, { color: theme.text }]}>
+                {PERIOD_SETTING_LABELS[key]}
+              </Text>
+              {DAY_ORDER.map((day) => (
+                <MatrixToggleCell
+                  key={`${key}-${day}`}
+                  active={schedule[key].includes(day)}
+                  theme={theme}
+                  disabled={disabled}
+                  onPress={() => onToggleSchedule(key, day)}
+                />
+              ))}
+            </View>
+          );
+        })}
+      </View>
+    </>
   );
 }
 
@@ -1496,12 +1586,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     gap: 10,
   },
-  dragActiveItemCard: {
-    zIndex: 20,
-  },
-  dragPlaceholderCard: {
-    opacity: 0.18,
-  },
   blackYellowItemCard: {
     borderBottomWidth: 2,
   },
@@ -1515,11 +1599,23 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     minWidth: 0,
   },
-  itemTitleInput: {
+  itemTitleDisplayWrap: {
     flexShrink: 1,
+    minWidth: 0,
+    justifyContent: "center",
+  },
+  itemTitleDisplay: {
+    flexShrink: 1,
+    fontSize: 20,
+    fontWeight: "600",
+    lineHeight: 28,
+  },
+  itemTitleInput: {
+    flex: 1,
+    minWidth: 0,
     minHeight: 36,
     padding: 0,
     fontSize: 20,
@@ -1535,9 +1631,14 @@ const styles = StyleSheet.create({
   itemActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 14,
     minHeight: 44,
     marginRight: -10,
+  },
+  orderButtonGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
   },
   scheduleMatrix: {
     gap: 7,
@@ -1576,15 +1677,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  dragHandle: {
+  orderButton: {
     alignItems: "center",
     justifyContent: "center",
     width: 34,
     height: 44,
   },
-  tabletDragHandle: {
+  tabletOrderButton: {
     width: 42,
     height: 52,
+  },
+  orderButtonDisabled: {
+    opacity: 0.22,
   },
   addButton: {
     position: "absolute",
