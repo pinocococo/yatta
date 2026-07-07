@@ -74,4 +74,4 @@ export const PERIOD_SETTING_LABELS: Record<Period, string> = {
 };
 
 export const DAY_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
-export const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
+export const DAY_ORDER = [0, 1, 2, 3, 4, 5, 6];

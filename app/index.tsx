@@ -48,11 +48,6 @@ const reorderLayoutTransition = LinearTransition.duration(180).reduceMotion(
   ReduceMotion.Never,
 );
 
-const freshCompletion = (settings: AppSettings): CompletionState => ({
-  date: getCompletionDateKey(settings),
-  completedTaskIds: [],
-});
-
 const byOrder = (a: Task, b: Task) => a.order - b.order;
 
 const completionKey = (period: Period, taskId: string) => `${period}:${taskId}`;
@@ -258,10 +253,16 @@ export default function YattaApp() {
     });
   };
 
-  const resetToday = () => {
+  const resetCurrentPeriod = () => {
+    const targetPrefix = `${period}:`;
     updateData((current) => ({
       ...current,
-      completion: freshCompletion(current.settings),
+      completion: {
+        ...current.completion,
+        completedTaskIds: current.completion.completedTaskIds.filter(
+          (id) => !id.startsWith(targetPrefix),
+        ),
+      },
     }));
   };
 
@@ -279,7 +280,7 @@ export default function YattaApp() {
           theme={theme}
           onComplete={completeTask}
           onOpenSettings={() => setScreen("settings")}
-          onReset={resetToday}
+          onReset={resetCurrentPeriod}
         />
       ) : (
         <SettingsScreen
@@ -783,6 +784,19 @@ function BasicSettings({
             ios_backgroundColor={theme.chipInactiveBackground}
           />
         </View>
+        <View
+          style={[
+            styles.soundCreditRow,
+            {
+              backgroundColor: theme.settingsPanelBackground,
+              borderColor: theme.primary,
+            },
+          ]}
+        >
+          <Text style={[styles.soundCreditText, { color: theme.text }]}>
+            音源：OtoLogic、音人
+          </Text>
+        </View>
       </ScrollView>
     </View>
   );
@@ -1014,7 +1028,7 @@ function ItemSettings({
         style={[
           styles.addButton,
           isTablet && styles.tabletAddButton,
-          { backgroundColor: theme.primary },
+          { backgroundColor: theme.addButtonBackground },
         ]}
       >
         <Ionicons name="add" size={isTablet ? 64 : 46} color={theme.addButtonIcon} />
@@ -1526,6 +1540,17 @@ const styles = StyleSheet.create({
   funSettingRow: {
     justifyContent: "space-between",
   },
+  soundCreditRow: {
+    minHeight: 48,
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  soundCreditText: {
+    fontSize: 13,
+    fontWeight: "600",
+    opacity: 0.72,
+  },
   swatches: {
     flexDirection: "row",
     alignItems: "center",
@@ -1570,10 +1595,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   itemsList: {
-    paddingBottom: 0,
+    paddingBottom: 120,
   },
   tabletItemsList: {
-    paddingBottom: 0,
+    paddingBottom: 168,
   },
   blackYellowItemsList: {
     paddingHorizontal: 0,

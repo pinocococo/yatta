@@ -19,7 +19,9 @@ import { Period, Task, Theme } from "@/types/yatta";
 const blowAwaySound = require("../../assets/audio/blow-away-b4c4.mp3");
 const flySwishSound = require("../../assets/audio/fly-swish.mp3");
 const spinSwishSound = require("../../assets/audio/spin-swish-long.mp3");
-const slingShrinkSound = require("../../assets/audio/sling-shrink.mp3");
+const tapSuckWhistleSound = require("../../assets/audio/tap-suck-whistle.mp3");
+const tapPulseFantasizeSound = require("../../assets/audio/tap-pulse-fantasize.mp3");
+const tapBurstSparkleSound = require("../../assets/audio/tap-burst-sparkle.mp3");
 const slingReleaseSound = require("../../assets/audio/sling-release.mp3");
 
 const SWIPE_ACTIVATION_DISTANCE = 12;
@@ -55,15 +57,18 @@ const FLY_SWIPE_ANIMATION_DURATION_MS = 170;
 const FLY_SWISH_RATE =
   FLY_SWISH_SOURCE_DURATION_MS / FLY_SWIPE_ANIMATION_DURATION_MS;
 const BLOW_AWAY_RATE = 1.2;
-const SLING_SHRINK_SOURCE_DURATION_MS = 261.224;
-const SLING_SHRINK_ANIMATION_DURATION_MS = 130;
-const SLING_SHRINK_RATE =
-  SLING_SHRINK_SOURCE_DURATION_MS / SLING_SHRINK_ANIMATION_DURATION_MS;
-const SLING_RELEASE_SOURCE_DURATION_MS = 1332.245;
-const SLING_RELEASE_ANIMATION_DURATION_MS = 210;
-const SLING_RELEASE_RATE =
-  SLING_RELEASE_SOURCE_DURATION_MS / SLING_RELEASE_ANIMATION_DURATION_MS;
-const SLING_RELEASE_DELAY_MS = 110;
+const TAP_SUCK_WHISTLE_SOURCE_DURATION_MS = 287.347;
+const TAP_SUCK_ANIMATION_DURATION_MS = 220;
+const TAP_SUCK_WHISTLE_RATE =
+  TAP_SUCK_WHISTLE_SOURCE_DURATION_MS / TAP_SUCK_ANIMATION_DURATION_MS;
+const TAP_PULSE_FANTASIZE_RATE = 1;
+const TAP_PULSE_FANTASIZE_FADE_START_MS = 260;
+const TAP_PULSE_FANTASIZE_FADE_DURATION_MS = 235;
+const TAP_PULSE_FANTASIZE_STOP_MS = 510;
+const TAP_PULSE_FANTASIZE_FADE_STEPS = 6;
+const TAP_BURST_SPARKLE_RATE = 1.3;
+const SLING_RELEASE_RATE = 1.5;
+const SLING_RELEASE_DELAY_MS = 70;
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
 
@@ -73,8 +78,12 @@ let preparedFlySwishSound: Audio.Sound | null = null;
 let flySwishLoadPromise: Promise<Audio.Sound | null> | null = null;
 let preparedSpinSwishSound: Audio.Sound | null = null;
 let spinSwishLoadPromise: Promise<Audio.Sound | null> | null = null;
-let preparedSlingShrinkSound: Audio.Sound | null = null;
-let slingShrinkLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedTapSuckWhistleSound: Audio.Sound | null = null;
+let tapSuckWhistleLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedTapPulseFantasizeSound: Audio.Sound | null = null;
+let tapPulseFantasizeLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedTapBurstSparkleSound: Audio.Sound | null = null;
+let tapBurstSparkleLoadPromise: Promise<Audio.Sound | null> | null = null;
 let preparedSlingReleaseSound: Audio.Sound | null = null;
 let slingReleaseLoadPromise: Promise<Audio.Sound | null> | null = null;
 
@@ -159,31 +168,85 @@ const loadSpinSwishSound = () => {
   return spinSwishLoadPromise;
 };
 
-const loadSlingShrinkSound = () => {
-  if (preparedSlingShrinkSound) {
-    return Promise.resolve(preparedSlingShrinkSound);
+const loadTapSuckWhistleSound = () => {
+  if (preparedTapSuckWhistleSound) {
+    return Promise.resolve(preparedTapSuckWhistleSound);
   }
-  if (slingShrinkLoadPromise) {
-    return slingShrinkLoadPromise;
+  if (tapSuckWhistleLoadPromise) {
+    return tapSuckWhistleLoadPromise;
   }
 
   const sound = new Audio.Sound();
-  slingShrinkLoadPromise = sound
-    .loadAsync(slingShrinkSound, {
-      rate: SLING_SHRINK_RATE,
+  tapSuckWhistleLoadPromise = sound
+    .loadAsync(tapSuckWhistleSound, {
+      rate: TAP_SUCK_WHISTLE_RATE,
       shouldCorrectPitch: false,
       volume: 1,
     })
     .then(() => {
-      preparedSlingShrinkSound = sound;
+      preparedTapSuckWhistleSound = sound;
       return sound;
     })
     .catch(() => {
-      slingShrinkLoadPromise = null;
+      tapSuckWhistleLoadPromise = null;
       return null;
     });
 
-  return slingShrinkLoadPromise;
+  return tapSuckWhistleLoadPromise;
+};
+
+const loadTapPulseFantasizeSound = () => {
+  if (preparedTapPulseFantasizeSound) {
+    return Promise.resolve(preparedTapPulseFantasizeSound);
+  }
+  if (tapPulseFantasizeLoadPromise) {
+    return tapPulseFantasizeLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  tapPulseFantasizeLoadPromise = sound
+    .loadAsync(tapPulseFantasizeSound, {
+      rate: TAP_PULSE_FANTASIZE_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedTapPulseFantasizeSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      tapPulseFantasizeLoadPromise = null;
+      return null;
+    });
+
+  return tapPulseFantasizeLoadPromise;
+};
+
+const loadTapBurstSparkleSound = () => {
+  if (preparedTapBurstSparkleSound) {
+    return Promise.resolve(preparedTapBurstSparkleSound);
+  }
+  if (tapBurstSparkleLoadPromise) {
+    return tapBurstSparkleLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  tapBurstSparkleLoadPromise = sound
+    .loadAsync(tapBurstSparkleSound, {
+      rate: TAP_BURST_SPARKLE_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedTapBurstSparkleSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      tapBurstSparkleLoadPromise = null;
+      return null;
+    });
+
+  return tapBurstSparkleLoadPromise;
 };
 
 const loadSlingReleaseSound = () => {
@@ -296,6 +359,33 @@ const scheduleSpinSwishFade = (
   }, SPIN_SWISH_STOP_MS);
 };
 
+const scheduleFadeOut = (
+  sound: Audio.Sound,
+  fadeStartMs: number,
+  fadeDurationMs: number,
+  stopMs: number,
+  steps: number,
+  shouldUnloadOnFinish: boolean,
+) => {
+  for (let step = 1; step <= steps; step += 1) {
+    const fadeStepMs = fadeStartMs + (fadeDurationMs / steps) * step;
+    setTimeout(() => {
+      void sound.setVolumeAsync(1 - step / steps).catch(() => undefined);
+    }, fadeStepMs);
+  }
+
+  setTimeout(() => {
+    void sound
+      .stopAsync()
+      .catch(() => undefined)
+      .finally(() => {
+        if (shouldUnloadOnFinish) {
+          void sound.unloadAsync().catch(() => undefined);
+        }
+      });
+  }, stopMs);
+};
+
 const playSpinSwishSound = async () => {
   try {
     const preparedSound = await loadSpinSwishSound();
@@ -325,6 +415,7 @@ const playPreparedSound = async (
   loadSound: () => Promise<Audio.Sound | null>,
   source: number,
   rate: number,
+  onPlay?: (sound: Audio.Sound, isPreparedSound: boolean) => void,
 ) => {
   try {
     const preparedSound = await loadSound();
@@ -334,6 +425,7 @@ const playPreparedSound = async (
       await preparedSound.setRateAsync(rate, false);
       await preparedSound.setVolumeAsync(1);
       await preparedSound.playAsync();
+      onPlay?.(preparedSound, true);
       return;
     }
 
@@ -343,6 +435,7 @@ const playPreparedSound = async (
       shouldCorrectPitch: false,
       volume: 1,
     });
+    onPlay?.(sound, false);
     sound.setOnPlaybackStatusUpdate((status) => {
       if (status.isLoaded && status.didJustFinish) {
         void sound.unloadAsync().catch(() => undefined);
@@ -353,19 +446,46 @@ const playPreparedSound = async (
   }
 };
 
-const playSlingShotSounds = () => {
+const playTapSuckWhistleSound = () => {
   void playPreparedSound(
-    loadSlingShrinkSound,
-    slingShrinkSound,
-    SLING_SHRINK_RATE,
+    loadTapSuckWhistleSound,
+    tapSuckWhistleSound,
+    TAP_SUCK_WHISTLE_RATE,
   );
-  setTimeout(() => {
-    void playPreparedSound(
-      loadSlingReleaseSound,
-      slingReleaseSound,
-      SLING_RELEASE_RATE,
-    );
-  }, SLING_RELEASE_DELAY_MS);
+};
+
+const playTapPulseFantasizeSound = () => {
+  void playPreparedSound(
+    loadTapPulseFantasizeSound,
+    tapPulseFantasizeSound,
+    TAP_PULSE_FANTASIZE_RATE,
+    (sound, isPreparedSound) => {
+      scheduleFadeOut(
+        sound,
+        TAP_PULSE_FANTASIZE_FADE_START_MS,
+        TAP_PULSE_FANTASIZE_FADE_DURATION_MS,
+        TAP_PULSE_FANTASIZE_STOP_MS,
+        TAP_PULSE_FANTASIZE_FADE_STEPS,
+        !isPreparedSound,
+      );
+    },
+  );
+};
+
+const playTapBurstSparkleSound = () => {
+  void playPreparedSound(
+    loadTapBurstSparkleSound,
+    tapBurstSparkleSound,
+    TAP_BURST_SPARKLE_RATE,
+  );
+};
+
+const playSlingReleaseSound = () => {
+  void playPreparedSound(
+    loadSlingReleaseSound,
+    slingReleaseSound,
+    SLING_RELEASE_RATE,
+  );
 };
 
 type Props = {
@@ -411,7 +531,9 @@ export function TaskCard({
     void loadBlowAwaySound();
     void loadFlySwishSound();
     void loadSpinSwishSound();
-    void loadSlingShrinkSound();
+    void loadTapSuckWhistleSound();
+    void loadTapPulseFantasizeSound();
+    void loadTapBurstSparkleSound();
     void loadSlingReleaseSound();
   }, [completionEffectsEnabled]);
 
@@ -437,11 +559,20 @@ export function TaskCard({
       if (completeAnimationType === "swipeSpinOut") {
         void playSpinSwishSound();
       }
+      if (completeAnimationType === "flyUp") {
+        playTapSuckWhistleSound();
+      }
+      if (completeAnimationType === "pulseOut") {
+        playTapPulseFantasizeSound();
+      }
+      if (completeAnimationType === "burstOut") {
+        playTapBurstSparkleSound();
+      }
       if (
         completeAnimationType === "slingShot" ||
         completeAnimationType === "slingShotLeft"
       ) {
-        playSlingShotSounds();
+        setTimeout(playSlingReleaseSound, SLING_RELEASE_DELAY_MS);
       }
     }
     playCompleteAnimation(completeAnimationType, {

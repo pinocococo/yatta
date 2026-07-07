@@ -53,7 +53,7 @@ const playFlyUp = ({ values, onFinished }: PlayArgs) => {
       useNativeDriver: true,
     }),
     Animated.timing(values.rotate, {
-      toValue: 1.4,
+      toValue: 0,
       duration: 220,
       useNativeDriver: true,
     }),
@@ -68,8 +68,8 @@ const playFlyUp = ({ values, onFinished }: PlayArgs) => {
       useNativeDriver: true,
     }),
     Animated.timing(values.opacity, {
-      toValue: 0,
-      duration: 180,
+      toValue: 1,
+      duration: 220,
       useNativeDriver: true,
     }),
   ]).start(({ finished }) => {
@@ -105,36 +105,89 @@ const playQuickFade = ({ values, onFinished }: PlayArgs) => {
 
 const playSlingShot = ({ values, onFinished }: PlayArgs) => {
   Animated.parallel([
-    Animated.timing(values.translateX, {
-      toValue: 500,
-      duration: 210,
-      useNativeDriver: true,
-    }),
+    Animated.sequence([
+      Animated.timing(values.translateX, {
+        toValue: -26,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.translateX, {
+        toValue: 48,
+        duration: 65,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.translateX, {
+        toValue: 660,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]),
     Animated.timing(values.translateY, {
       toValue: 0,
-      duration: 210,
+      duration: 355,
       useNativeDriver: true,
     }),
     Animated.timing(values.rotate, {
       toValue: 0,
-      duration: 210,
+      duration: 355,
       useNativeDriver: true,
     }),
-    Animated.timing(values.scaleX, {
-      toValue: 0.1,
-      duration: 130,
-      useNativeDriver: true,
-    }),
-    Animated.timing(values.scaleY, {
-      toValue: 1,
-      duration: 130,
-      useNativeDriver: true,
-    }),
-    Animated.timing(values.opacity, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }),
+    Animated.sequence([
+      Animated.timing(values.scaleX, {
+        toValue: 0.7,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 1.1,
+        duration: 65,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 1.02,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 0.96,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]),
+    Animated.sequence([
+      Animated.timing(values.scaleY, {
+        toValue: 1.04,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 1.08,
+        duration: 65,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 1.02,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 0.96,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]),
+    Animated.sequence([
+      Animated.timing(values.opacity, {
+        toValue: 1,
+        duration: 355,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.opacity, {
+        toValue: 0,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]),
   ]).start(({ finished }) => {
     if (finished) {
       onFinished();
@@ -144,36 +197,89 @@ const playSlingShot = ({ values, onFinished }: PlayArgs) => {
 
 const playSlingShotLeft = ({ values, onFinished }: PlayArgs) => {
   Animated.parallel([
-    Animated.timing(values.translateX, {
-      toValue: -500,
-      duration: 210,
-      useNativeDriver: true,
-    }),
+    Animated.sequence([
+      Animated.timing(values.translateX, {
+        toValue: 26,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.translateX, {
+        toValue: -48,
+        duration: 65,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.translateX, {
+        toValue: -660,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]),
     Animated.timing(values.translateY, {
       toValue: 0,
-      duration: 210,
+      duration: 355,
       useNativeDriver: true,
     }),
     Animated.timing(values.rotate, {
       toValue: 0,
-      duration: 210,
+      duration: 355,
       useNativeDriver: true,
     }),
-    Animated.timing(values.scaleX, {
-      toValue: 0.1,
-      duration: 130,
-      useNativeDriver: true,
-    }),
-    Animated.timing(values.scaleY, {
-      toValue: 1,
-      duration: 130,
-      useNativeDriver: true,
-    }),
-    Animated.timing(values.opacity, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }),
+    Animated.sequence([
+      Animated.timing(values.scaleX, {
+        toValue: 0.7,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 1.1,
+        duration: 65,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 1.02,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleX, {
+        toValue: 0.96,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]),
+    Animated.sequence([
+      Animated.timing(values.scaleY, {
+        toValue: 1.04,
+        duration: 70,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 1.08,
+        duration: 65,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 1.02,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.scaleY, {
+        toValue: 0.96,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]),
+    Animated.sequence([
+      Animated.timing(values.opacity, {
+        toValue: 1,
+        duration: 355,
+        useNativeDriver: true,
+      }),
+      Animated.timing(values.opacity, {
+        toValue: 0,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]),
   ]).start(({ finished }) => {
     if (finished) {
       onFinished();
