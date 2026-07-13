@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -43,6 +44,9 @@ type Screen = "tasks" | "settings";
 type SettingsTab = "basic" | "items";
 
 const blueWaveImage = require("../assets/wave-blue.png");
+const completeLogoBlueImage = require("../assets/yatta-complete-blue.png");
+const completeLogoYellowImage = require("../assets/yatta-complete-yellow.png");
+const allCompleteSound = require("../assets/audio/all-complete.mp3");
 
 const reorderLayoutTransition = LinearTransition.duration(180).reduceMotion(
   ReduceMotion.Never,
@@ -110,6 +114,22 @@ const formatDatePart = (value: number) => String(value);
 
 const formatClockTime = (date: Date) =>
   `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+
+const playAllCompleteSound = async () => {
+  try {
+    const { sound } = await Audio.Sound.createAsync(allCompleteSound, {
+      shouldPlay: true,
+      volume: 1,
+    });
+    sound.setOnPlaybackStatusUpdate((status) => {
+      if (status.isLoaded && status.didJustFinish) {
+        void sound.unloadAsync();
+      }
+    });
+  } catch {
+    // Completion display should still work if the sound cannot be played.
+  }
+};
 
 export default function YattaApp() {
   const [data, setData] = useState<YattaData | null>(null);
@@ -341,14 +361,32 @@ function TaskListScreen({
   const { width } = useWindowDimensions();
   const [isTaskSwipeActive, setTaskSwipeActive] = useState(false);
   const [now, setNow] = useState(() => new Date());
+  const previousVisibleCountRef = useRef<{ period: Period; count: number } | null>(null);
   const isBlackYellow = theme.variant === "blackYellow";
   const isTablet = width >= 768;
   const isCompactHeader = width < 360;
+  const completeLogoSource = isBlackYellow ? completeLogoYellowImage : completeLogoBlueImage;
 
   useEffect(() => {
     const intervalId = setInterval(() => setNow(new Date()), 30 * 1000);
     return () => clearInterval(intervalId);
   }, []);
+
+  useEffect(() => {
+    const previous = previousVisibleCountRef.current;
+    if (
+      completionEffectsEnabled &&
+      previous?.period === period &&
+      previous.count > 0 &&
+      tasks.length === 0
+    ) {
+      void playAllCompleteSound();
+    }
+    previousVisibleCountRef.current = {
+      period,
+      count: tasks.length,
+    };
+  }, [completionEffectsEnabled, period, tasks.length]);
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background }]}>
@@ -528,15 +566,12 @@ function TaskListScreen({
         ))}
         {tasks.length === 0 ? (
           <View style={styles.empty}>
-            <Text
-              style={[
-                styles.emptyText,
-                isTablet && styles.tabletEmptyText,
-                { color: theme.text },
-              ]}
-            >
-              ぜんぶできた！
-            </Text>
+            <Image
+              accessibilityIgnoresInvertColors
+              resizeMode="contain"
+              source={completeLogoSource}
+              style={[styles.completeLogo, isTablet && styles.tabletCompleteLogo]}
+            />
           </View>
         ) : null}
       </ScrollView>
@@ -1415,6 +1450,7 @@ const styles = StyleSheet.create({
   },
   taskList: {
     width: "100%",
+    flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 16,
     paddingBottom: 32,
@@ -1430,16 +1466,18 @@ const styles = StyleSheet.create({
     gap: 24,
   },
   empty: {
-    minHeight: 180,
+    flex: 1,
+    minHeight: 360,
     alignItems: "center",
     justifyContent: "center",
   },
-  emptyText: {
-    fontSize: 28,
-    fontWeight: "800",
+  completeLogo: {
+    width: 132,
+    height: 180,
   },
-  tabletEmptyText: {
-    fontSize: 32,
+  tabletCompleteLogo: {
+    width: 180,
+    height: 245,
   },
   settingsScreen: {
     flex: 1,
