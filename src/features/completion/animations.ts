@@ -5,11 +5,14 @@ export type CompletionAnimationType =
   | "flyUp"
   | "pulseOut"
   | "burstOut"
+  | "shatterBurst"
   | "slingShot"
   | "slingShotLeft"
   | "swipeFlyLeft"
   | "swipeFlyRight"
   | "swipeSpinOut"
+  | "sliceDropLeft"
+  | "sliceDropRight"
   | "swipeFlyUpRight"
   | "swipeFlyUpLeft"
   | "flyOut"
@@ -562,11 +565,14 @@ const animationRegistry: Record<
   flyUp: playFlyUp,
   pulseOut: playPulseOut,
   burstOut: playBurstOut,
+  shatterBurst: playQuickFade,
   slingShot: playSlingShot,
   slingShotLeft: playSlingShotLeft,
   swipeFlyLeft: playSwipeFlyLeft,
   swipeFlyRight: playSwipeFlyRight,
   swipeSpinOut: playSwipeSpinOut,
+  sliceDropLeft: playQuickFade,
+  sliceDropRight: playQuickFade,
   swipeFlyUpRight: playFlyUp,
   swipeFlyUpLeft: playSwipeFlyUpLeft,
   flyOut: playFlyUp,

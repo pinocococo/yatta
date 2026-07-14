@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Audio } from "expo-av";
 import {
   Animated,
+  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -23,6 +24,8 @@ const tapSuckWhistleSound = require("../../assets/audio/tap-suck-whistle.mp3");
 const tapPulseFantasizeSound = require("../../assets/audio/tap-pulse-fantasize.mp3");
 const tapBurstSparkleSound = require("../../assets/audio/tap-burst-sparkle.mp3");
 const slingReleaseSound = require("../../assets/audio/sling-release.mp3");
+const sliceSlashSound = require("../../assets/audio/slice-slash.mp3");
+const shatterHitSound = require("../../assets/audio/shatter-hit.mp3");
 
 const SWIPE_ACTIVATION_DISTANCE = 12;
 const SWIPE_COMPLETE_DISTANCE = 92;
@@ -35,17 +38,20 @@ const SWIPE_LEFT_ANIMATION_TYPES: CompletionAnimationType[] = [
   "swipeFlyLeft",
   "swipeSpinOut",
   "swipeFlyUpLeft",
+  "sliceDropLeft",
 ];
 const SWIPE_RIGHT_ANIMATION_TYPES: CompletionAnimationType[] = [
   "slingShotLeft",
   "swipeFlyRight",
   "swipeSpinOut",
   "swipeFlyUpRight",
+  "sliceDropRight",
 ];
 const TAP_ANIMATION_TYPES: CompletionAnimationType[] = [
   "flyUp",
   "pulseOut",
   "burstOut",
+  "shatterBurst",
 ];
 const SPIN_SWISH_RATE = 1.5;
 const SPIN_SWISH_FADE_START_MS = 120;
@@ -69,6 +75,8 @@ const TAP_PULSE_FANTASIZE_FADE_STEPS = 6;
 const TAP_BURST_SPARKLE_RATE = 1.3;
 const SLING_RELEASE_RATE = 1.5;
 const SLING_RELEASE_DELAY_MS = 70;
+const SLICE_SLASH_RATE = 1;
+const SHATTER_HIT_RATE = 1;
 type SwipeDirection = "left" | "right";
 type ScaleAnchor = "left" | "center" | "right";
 
@@ -86,6 +94,10 @@ let preparedTapBurstSparkleSound: Audio.Sound | null = null;
 let tapBurstSparkleLoadPromise: Promise<Audio.Sound | null> | null = null;
 let preparedSlingReleaseSound: Audio.Sound | null = null;
 let slingReleaseLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedSliceSlashSound: Audio.Sound | null = null;
+let sliceSlashLoadPromise: Promise<Audio.Sound | null> | null = null;
+let preparedShatterHitSound: Audio.Sound | null = null;
+let shatterHitLoadPromise: Promise<Audio.Sound | null> | null = null;
 
 const loadBlowAwaySound = () => {
   if (preparedBlowAwaySound) {
@@ -274,6 +286,60 @@ const loadSlingReleaseSound = () => {
     });
 
   return slingReleaseLoadPromise;
+};
+
+const loadSliceSlashSound = () => {
+  if (preparedSliceSlashSound) {
+    return Promise.resolve(preparedSliceSlashSound);
+  }
+  if (sliceSlashLoadPromise) {
+    return sliceSlashLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  sliceSlashLoadPromise = sound
+    .loadAsync(sliceSlashSound, {
+      rate: SLICE_SLASH_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedSliceSlashSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      sliceSlashLoadPromise = null;
+      return null;
+    });
+
+  return sliceSlashLoadPromise;
+};
+
+const loadShatterHitSound = () => {
+  if (preparedShatterHitSound) {
+    return Promise.resolve(preparedShatterHitSound);
+  }
+  if (shatterHitLoadPromise) {
+    return shatterHitLoadPromise;
+  }
+
+  const sound = new Audio.Sound();
+  shatterHitLoadPromise = sound
+    .loadAsync(shatterHitSound, {
+      rate: SHATTER_HIT_RATE,
+      shouldCorrectPitch: false,
+      volume: 1,
+    })
+    .then(() => {
+      preparedShatterHitSound = sound;
+      return sound;
+    })
+    .catch(() => {
+      shatterHitLoadPromise = null;
+      return null;
+    });
+
+  return shatterHitLoadPromise;
 };
 
 const playBlowAwaySound = async () => {
@@ -488,6 +554,22 @@ const playSlingReleaseSound = () => {
   );
 };
 
+const playSliceSlashSound = () => {
+  void playPreparedSound(
+    loadSliceSlashSound,
+    sliceSlashSound,
+    SLICE_SLASH_RATE,
+  );
+};
+
+const playShatterHitSound = () => {
+  void playPreparedSound(
+    loadShatterHitSound,
+    shatterHitSound,
+    SHATTER_HIT_RATE,
+  );
+};
+
 type Props = {
   task: Task;
   period: Period;
@@ -510,6 +592,41 @@ export function TaskCard({
   animationType = "flyUp",
 }: Props) {
   const values = useRef(createCompletionValues()).current;
+  const sliceValues = useRef({
+    lineOpacity: new Animated.Value(0),
+    lineScaleX: new Animated.Value(0),
+    topTranslateX: new Animated.Value(0),
+    topTranslateY: new Animated.Value(0),
+    topRotate: new Animated.Value(0),
+    bottomTranslateX: new Animated.Value(0),
+    bottomTranslateY: new Animated.Value(0),
+    bottomRotate: new Animated.Value(0),
+    opacity: new Animated.Value(1),
+  }).current;
+  const shatterValues = useRef({
+    impactOpacity: new Animated.Value(0),
+    impactScale: new Animated.Value(0),
+    topLeftTranslateX: new Animated.Value(0),
+    topLeftTranslateY: new Animated.Value(0),
+    topLeftRotate: new Animated.Value(0),
+    topRightTranslateX: new Animated.Value(0),
+    topRightTranslateY: new Animated.Value(0),
+    topRightRotate: new Animated.Value(0),
+    bottomLeftTranslateX: new Animated.Value(0),
+    bottomLeftTranslateY: new Animated.Value(0),
+    bottomLeftRotate: new Animated.Value(0),
+    bottomRightTranslateX: new Animated.Value(0),
+    bottomRightTranslateY: new Animated.Value(0),
+    bottomRightRotate: new Animated.Value(0),
+    centerTranslateX: new Animated.Value(0),
+    centerTranslateY: new Animated.Value(0),
+    centerRotate: new Animated.Value(0),
+    topLeftOpacity: new Animated.Value(1),
+    topRightOpacity: new Animated.Value(1),
+    bottomLeftOpacity: new Animated.Value(1),
+    bottomRightOpacity: new Animated.Value(1),
+    centerOpacity: new Animated.Value(1),
+  }).current;
   const isCompletingRef = useRef(false);
   const swipeAnimationTypeRef = useRef<CompletionAnimationType | null>(null);
   const swipeDirectionRef = useRef<SwipeDirection | null>(null);
@@ -518,10 +635,45 @@ export function TaskCard({
   >(null);
   const [scaleAnchor, setScaleAnchor] = useState<ScaleAnchor>("left");
   const [isCompleting, setCompleting] = useState(false);
+  const [isSliceCompleting, setSliceCompleting] = useState(false);
+  const [isShatterCompleting, setShatterCompleting] = useState(false);
   const [isGone, setGone] = useState(false);
 
   useEffect(() => {
     setGone(false);
+    setSliceCompleting(false);
+    setShatterCompleting(false);
+    sliceValues.lineOpacity.setValue(0);
+    sliceValues.lineScaleX.setValue(0);
+    sliceValues.topTranslateX.setValue(0);
+    sliceValues.topTranslateY.setValue(0);
+    sliceValues.topRotate.setValue(0);
+    sliceValues.bottomTranslateX.setValue(0);
+    sliceValues.bottomTranslateY.setValue(0);
+    sliceValues.bottomRotate.setValue(0);
+    sliceValues.opacity.setValue(1);
+    shatterValues.impactOpacity.setValue(0);
+    shatterValues.impactScale.setValue(0);
+    shatterValues.topLeftTranslateX.setValue(0);
+    shatterValues.topLeftTranslateY.setValue(0);
+    shatterValues.topLeftRotate.setValue(0);
+    shatterValues.topRightTranslateX.setValue(0);
+    shatterValues.topRightTranslateY.setValue(0);
+    shatterValues.topRightRotate.setValue(0);
+    shatterValues.bottomLeftTranslateX.setValue(0);
+    shatterValues.bottomLeftTranslateY.setValue(0);
+    shatterValues.bottomLeftRotate.setValue(0);
+    shatterValues.bottomRightTranslateX.setValue(0);
+    shatterValues.bottomRightTranslateY.setValue(0);
+    shatterValues.bottomRightRotate.setValue(0);
+    shatterValues.centerTranslateX.setValue(0);
+    shatterValues.centerTranslateY.setValue(0);
+    shatterValues.centerRotate.setValue(0);
+    shatterValues.topLeftOpacity.setValue(1);
+    shatterValues.topRightOpacity.setValue(1);
+    shatterValues.bottomLeftOpacity.setValue(1);
+    shatterValues.bottomRightOpacity.setValue(1);
+    shatterValues.centerOpacity.setValue(1);
   }, [period, task.id]);
 
   useEffect(() => {
@@ -535,7 +687,349 @@ export function TaskCard({
     void loadTapPulseFantasizeSound();
     void loadTapBurstSparkleSound();
     void loadSlingReleaseSound();
+    void loadSliceSlashSound();
+    void loadShatterHitSound();
   }, [completionEffectsEnabled]);
+
+  const finishCompletion = () => {
+    onComplete(task.id, period);
+    setGone(true);
+    isCompletingRef.current = false;
+    setCompleting(false);
+    setSliceCompleting(false);
+    setShatterCompleting(false);
+  };
+
+  const resetBaseValues = () => {
+    values.translateX.setValue(0);
+    values.translateY.setValue(0);
+    values.rotate.setValue(0);
+    values.scaleX.setValue(1);
+    values.scaleY.setValue(1);
+    values.opacity.setValue(1);
+  };
+
+  const playSliceDropAnimation = (
+    completeAnimationType: CompletionAnimationType,
+  ) => {
+    const direction = completeAnimationType === "sliceDropLeft" ? -1 : 1;
+    if (completionEffectsEnabled) {
+      playSliceSlashSound();
+    }
+    setScaleAnchor("center");
+    setSliceCompleting(true);
+    resetBaseValues();
+    sliceValues.lineOpacity.setValue(0);
+    sliceValues.lineScaleX.setValue(0);
+    sliceValues.topTranslateX.setValue(0);
+    sliceValues.topTranslateY.setValue(0);
+    sliceValues.topRotate.setValue(0);
+    sliceValues.bottomTranslateX.setValue(0);
+    sliceValues.bottomTranslateY.setValue(0);
+    sliceValues.bottomRotate.setValue(0);
+    sliceValues.opacity.setValue(1);
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(sliceValues.lineOpacity, {
+          toValue: 1,
+          duration: 35,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.lineScaleX, {
+          toValue: 1,
+          duration: 90,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(sliceValues.lineOpacity, {
+          toValue: 0,
+          duration: 80,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.topTranslateX, {
+          toValue: direction * -96,
+          duration: 360,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.topTranslateY, {
+          toValue: 430,
+          duration: 360,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.topRotate, {
+          toValue: direction * -1.8,
+          duration: 360,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.bottomTranslateX, {
+          toValue: direction * 128,
+          duration: 390,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.bottomTranslateY, {
+          toValue: 520,
+          duration: 390,
+          easing: Easing.in(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(sliceValues.bottomRotate, {
+          toValue: direction * 2.2,
+          duration: 390,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(260),
+          Animated.timing(sliceValues.opacity, {
+            toValue: 0,
+            duration: 130,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    ]).start(({ finished }) => {
+      if (finished) {
+        finishCompletion();
+      }
+    });
+  };
+
+  const playShatterBurstAnimation = () => {
+    const randomBetween = (min: number, max: number) =>
+      min + Math.random() * (max - min);
+    if (completionEffectsEnabled) {
+      playShatterHitSound();
+    }
+    setScaleAnchor("center");
+    setShatterCompleting(true);
+    resetBaseValues();
+    shatterValues.impactOpacity.setValue(0);
+    shatterValues.impactScale.setValue(0);
+    shatterValues.topLeftTranslateX.setValue(0);
+    shatterValues.topLeftTranslateY.setValue(0);
+    shatterValues.topLeftRotate.setValue(0);
+    shatterValues.topRightTranslateX.setValue(0);
+    shatterValues.topRightTranslateY.setValue(0);
+    shatterValues.topRightRotate.setValue(0);
+    shatterValues.bottomLeftTranslateX.setValue(0);
+    shatterValues.bottomLeftTranslateY.setValue(0);
+    shatterValues.bottomLeftRotate.setValue(0);
+    shatterValues.bottomRightTranslateX.setValue(0);
+    shatterValues.bottomRightTranslateY.setValue(0);
+    shatterValues.bottomRightRotate.setValue(0);
+    shatterValues.centerTranslateX.setValue(0);
+    shatterValues.centerTranslateY.setValue(0);
+    shatterValues.centerRotate.setValue(0);
+    shatterValues.topLeftOpacity.setValue(1);
+    shatterValues.topRightOpacity.setValue(1);
+    shatterValues.bottomLeftOpacity.setValue(1);
+    shatterValues.bottomRightOpacity.setValue(1);
+    shatterValues.centerOpacity.setValue(1);
+
+    const pieceTargets = {
+      topLeftX: randomBetween(-210, -120),
+      topLeftY: randomBetween(-190, -95),
+      topLeftRotate: randomBetween(-2.4, -1.1),
+      topLeftDuration: randomBetween(300, 430),
+      topLeftFadeDelay: randomBetween(120, 230),
+      topRightX: randomBetween(110, 230),
+      topRightY: randomBetween(-185, -80),
+      topRightRotate: randomBetween(1.1, 2.6),
+      topRightDuration: randomBetween(290, 410),
+      topRightFadeDelay: randomBetween(90, 210),
+      bottomLeftX: randomBetween(-230, -105),
+      bottomLeftY: randomBetween(90, 230),
+      bottomLeftRotate: randomBetween(1, 2.7),
+      bottomLeftDuration: randomBetween(330, 460),
+      bottomLeftFadeDelay: randomBetween(150, 270),
+      bottomRightX: randomBetween(105, 220),
+      bottomRightY: randomBetween(100, 245),
+      bottomRightRotate: randomBetween(-2.8, -1),
+      bottomRightDuration: randomBetween(320, 450),
+      bottomRightFadeDelay: randomBetween(130, 260),
+      centerX: randomBetween(-70, 85),
+      centerY: randomBetween(-225, 210),
+      centerRotate: randomBetween(-3.2, 3.2),
+      centerDuration: randomBetween(280, 430),
+      centerFadeDelay: randomBetween(70, 190),
+    };
+
+    Animated.sequence([
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(shatterValues.impactOpacity, {
+            toValue: 1,
+            duration: 35,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+          Animated.timing(shatterValues.impactOpacity, {
+            toValue: 0,
+            duration: 95,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(shatterValues.impactScale, {
+          toValue: 1.35,
+          duration: 130,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.parallel([
+        Animated.timing(shatterValues.topLeftTranslateX, {
+          toValue: pieceTargets.topLeftX,
+          duration: pieceTargets.topLeftDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.topLeftTranslateY, {
+          toValue: pieceTargets.topLeftY,
+          duration: pieceTargets.topLeftDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.topLeftRotate, {
+          toValue: pieceTargets.topLeftRotate,
+          duration: pieceTargets.topLeftDuration,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(pieceTargets.topLeftFadeDelay),
+          Animated.timing(shatterValues.topLeftOpacity, {
+            toValue: 0,
+            duration: randomBetween(110, 210),
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(shatterValues.topRightTranslateX, {
+          toValue: pieceTargets.topRightX,
+          duration: pieceTargets.topRightDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.topRightTranslateY, {
+          toValue: pieceTargets.topRightY,
+          duration: pieceTargets.topRightDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.topRightRotate, {
+          toValue: pieceTargets.topRightRotate,
+          duration: pieceTargets.topRightDuration,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(pieceTargets.topRightFadeDelay),
+          Animated.timing(shatterValues.topRightOpacity, {
+            toValue: 0,
+            duration: randomBetween(120, 220),
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(shatterValues.bottomLeftTranslateX, {
+          toValue: pieceTargets.bottomLeftX,
+          duration: pieceTargets.bottomLeftDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.bottomLeftTranslateY, {
+          toValue: pieceTargets.bottomLeftY,
+          duration: pieceTargets.bottomLeftDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.bottomLeftRotate, {
+          toValue: pieceTargets.bottomLeftRotate,
+          duration: pieceTargets.bottomLeftDuration,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(pieceTargets.bottomLeftFadeDelay),
+          Animated.timing(shatterValues.bottomLeftOpacity, {
+            toValue: 0,
+            duration: randomBetween(110, 220),
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(shatterValues.bottomRightTranslateX, {
+          toValue: pieceTargets.bottomRightX,
+          duration: pieceTargets.bottomRightDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.bottomRightTranslateY, {
+          toValue: pieceTargets.bottomRightY,
+          duration: pieceTargets.bottomRightDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.bottomRightRotate, {
+          toValue: pieceTargets.bottomRightRotate,
+          duration: pieceTargets.bottomRightDuration,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(pieceTargets.bottomRightFadeDelay),
+          Animated.timing(shatterValues.bottomRightOpacity, {
+            toValue: 0,
+            duration: randomBetween(120, 230),
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.timing(shatterValues.centerTranslateX, {
+          toValue: pieceTargets.centerX,
+          duration: pieceTargets.centerDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.centerTranslateY, {
+          toValue: pieceTargets.centerY,
+          duration: pieceTargets.centerDuration,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(shatterValues.centerRotate, {
+          toValue: pieceTargets.centerRotate,
+          duration: pieceTargets.centerDuration,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(pieceTargets.centerFadeDelay),
+          Animated.timing(shatterValues.centerOpacity, {
+            toValue: 0,
+            duration: randomBetween(90, 190),
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+    ]).start(({ finished }) => {
+      if (finished) {
+        finishCompletion();
+      }
+    });
+  };
 
   const completeTask = (completeAnimationType: CompletionAnimationType) => {
     if (isCompletingRef.current) {
@@ -543,6 +1037,17 @@ export function TaskCard({
     }
     isCompletingRef.current = true;
     setCompleting(true);
+    if (
+      completeAnimationType === "sliceDropLeft" ||
+      completeAnimationType === "sliceDropRight"
+    ) {
+      playSliceDropAnimation(completeAnimationType);
+      return;
+    }
+    if (completeAnimationType === "shatterBurst") {
+      playShatterBurstAnimation();
+      return;
+    }
     if (completionEffectsEnabled) {
       if (
         completeAnimationType === "swipeFlyUpLeft" ||
@@ -577,12 +1082,7 @@ export function TaskCard({
     }
     playCompleteAnimation(completeAnimationType, {
       values,
-      onFinished: () => {
-        onComplete(task.id, period);
-        setGone(true);
-        isCompletingRef.current = false;
-        setCompleting(false);
-      },
+      onFinished: finishCompletion,
     });
   };
 
@@ -599,7 +1099,8 @@ export function TaskCard({
     setScaleAnchor(
       nextAnimationType === "pulseOut" ||
         nextAnimationType === "flyUp" ||
-        nextAnimationType === "burstOut"
+        nextAnimationType === "burstOut" ||
+        nextAnimationType === "shatterBurst"
         ? "center"
         : "left",
     );
@@ -630,6 +1131,11 @@ export function TaskCard({
     swipeDirectionRef.current = direction;
     setSwipeAnimationType(nextAnimationType);
     if (nextAnimationType === "swipeSpinOut") {
+      setScaleAnchor("center");
+    } else if (
+      nextAnimationType === "sliceDropLeft" ||
+      nextAnimationType === "sliceDropRight"
+    ) {
       setScaleAnchor("center");
     } else if (nextAnimationType === "slingShotLeft") {
       setScaleAnchor("right");
@@ -698,6 +1204,18 @@ export function TaskCard({
       );
       values.scaleX.setValue(1 - 0.24 * swipeProgress);
       values.scaleY.setValue(1 - 0.24 * swipeProgress);
+      return;
+    }
+
+    if (
+      activeSwipeAnimationType === "sliceDropLeft" ||
+      activeSwipeAnimationType === "sliceDropRight"
+    ) {
+      values.translateX.setValue(translateX * 0.18);
+      values.translateY.setValue(0);
+      values.rotate.setValue(0);
+      values.scaleX.setValue(1);
+      values.scaleY.setValue(1);
       return;
     }
 
@@ -788,10 +1306,64 @@ export function TaskCard({
     inputRange: [-1, 0, 1],
     outputRange: ["-16deg", "0deg", "16deg"],
   });
+  const sliceTopRotate = sliceValues.topRotate.interpolate({
+    inputRange: [-2, 0, 2],
+    outputRange: ["-28deg", "0deg", "28deg"],
+  });
+  const sliceBottomRotate = sliceValues.bottomRotate.interpolate({
+    inputRange: [-2.4, 0, 2.4],
+    outputRange: ["-36deg", "0deg", "36deg"],
+  });
+  const shatterTopLeftRotate = shatterValues.topLeftRotate.interpolate({
+    inputRange: [-2, 0, 2],
+    outputRange: ["-34deg", "0deg", "34deg"],
+  });
+  const shatterTopRightRotate = shatterValues.topRightRotate.interpolate({
+    inputRange: [-2, 0, 2],
+    outputRange: ["-34deg", "0deg", "34deg"],
+  });
+  const shatterBottomLeftRotate = shatterValues.bottomLeftRotate.interpolate({
+    inputRange: [-2, 0, 2],
+    outputRange: ["-36deg", "0deg", "36deg"],
+  });
+  const shatterBottomRightRotate = shatterValues.bottomRightRotate.interpolate({
+    inputRange: [-2, 0, 2],
+    outputRange: ["-38deg", "0deg", "38deg"],
+  });
+  const shatterCenterRotate = shatterValues.centerRotate.interpolate({
+    inputRange: [-3.4, 0, 3.4],
+    outputRange: ["-62deg", "0deg", "62deg"],
+  });
   const shadowStyle = {
     shadowColor: theme.primary,
     boxShadow: `0px 4px 0px ${theme.primary}`,
   } as object;
+  const cardHeight = isTablet ? 88 : 72;
+  const halfCardHeight = cardHeight / 2;
+  const cardStyle = [
+    styles.card,
+    isTablet && styles.tabletCard,
+    theme.variant === "blackYellow" && styles.blackYellowCard,
+    shadowStyle,
+    {
+      borderColor: theme.primary,
+      backgroundColor: theme.cardBackground,
+    },
+  ];
+  const cardInnerStyle = [styles.cardInner, isTablet && styles.tabletCardInner];
+  const titleStyle = [
+    styles.title,
+    isTablet && styles.tabletTitle,
+    { color: theme.cardText },
+  ];
+  const shatterPieceSurfaceStyle = [
+    styles.shatterPieceSurface,
+    theme.variant === "blackYellow" && styles.blackYellowShatterPieceSurface,
+    {
+      borderColor: theme.primary,
+      backgroundColor: theme.cardBackground,
+    },
+  ];
 
   if (isGone) {
     return null;
@@ -822,35 +1394,198 @@ export function TaskCard({
           { transform: [{ scaleX: values.scaleX }, { scaleY: values.scaleY }] },
         ]}
       >
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${task.title}を完了`}
-          disabled={isCompleting}
-          onPress={tapComplete}
-          style={[
-            styles.card,
-            isTablet && styles.tabletCard,
-            theme.variant === "blackYellow" && styles.blackYellowCard,
-            shadowStyle,
-            {
-              borderColor: theme.primary,
-              backgroundColor: theme.cardBackground,
-            },
-          ]}
-        >
-          <View style={[styles.cardInner, isTablet && styles.tabletCardInner]}>
-            <Text
+        {isShatterCompleting ? (
+          <View
+            pointerEvents="none"
+            style={[styles.shatterStage, { height: cardHeight }]}
+          >
+            <Animated.View
               style={[
-                styles.title,
-                isTablet && styles.tabletTitle,
-                { color: theme.cardText },
+                styles.shatterPiece,
+                styles.shatterTopLeft,
+                {
+                  height: cardHeight * 0.68,
+                  opacity: shatterValues.topLeftOpacity,
+                  transform: [
+                    { translateX: shatterValues.topLeftTranslateX },
+                    { translateY: shatterValues.topLeftTranslateY },
+                    { rotate: shatterTopLeftRotate },
+                  ],
+                },
               ]}
-              numberOfLines={1}
             >
-              {task.title}
-            </Text>
+              <View style={[shatterPieceSurfaceStyle, styles.shatterShardTopLeft]} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.shatterPiece,
+                styles.shatterTopRight,
+                {
+                  height: cardHeight * 0.56,
+                  opacity: shatterValues.topRightOpacity,
+                  transform: [
+                    { translateX: shatterValues.topRightTranslateX },
+                    { translateY: shatterValues.topRightTranslateY },
+                    { rotate: shatterTopRightRotate },
+                  ],
+                },
+              ]}
+            >
+              <View style={[shatterPieceSurfaceStyle, styles.shatterShardTopRight]} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.shatterPiece,
+                styles.shatterBottomLeft,
+                {
+                  height: cardHeight * 0.58,
+                  top: cardHeight * 0.37,
+                  opacity: shatterValues.bottomLeftOpacity,
+                  transform: [
+                    { translateX: shatterValues.bottomLeftTranslateX },
+                    { translateY: shatterValues.bottomLeftTranslateY },
+                    { rotate: shatterBottomLeftRotate },
+                  ],
+                },
+              ]}
+            >
+              <View style={[shatterPieceSurfaceStyle, styles.shatterShardBottomLeft]} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.shatterPiece,
+                styles.shatterBottomRight,
+                {
+                  height: cardHeight * 0.7,
+                  top: cardHeight * 0.28,
+                  opacity: shatterValues.bottomRightOpacity,
+                  transform: [
+                    { translateX: shatterValues.bottomRightTranslateX },
+                    { translateY: shatterValues.bottomRightTranslateY },
+                    { rotate: shatterBottomRightRotate },
+                  ],
+                },
+              ]}
+            >
+              <View style={[shatterPieceSurfaceStyle, styles.shatterShardBottomRight]} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.shatterPiece,
+                styles.shatterCenter,
+                {
+                  opacity: shatterValues.centerOpacity,
+                  transform: [
+                    { translateX: shatterValues.centerTranslateX },
+                    { translateY: shatterValues.centerTranslateY },
+                    { rotate: shatterCenterRotate },
+                  ],
+                },
+              ]}
+            >
+              <View style={[shatterPieceSurfaceStyle, styles.shatterShardCenter]} />
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.shatterImpact,
+                {
+                  borderColor: theme.primary,
+                  opacity: shatterValues.impactOpacity,
+                  transform: [{ scale: shatterValues.impactScale }],
+                },
+              ]}
+            />
           </View>
-        </Pressable>
+        ) : isSliceCompleting ? (
+          <View
+            pointerEvents="none"
+            style={[styles.sliceStage, { height: cardHeight }]}
+          >
+            <Animated.View
+              style={[
+                styles.sliceHalf,
+                styles.sliceTopHalf,
+                { height: halfCardHeight, opacity: sliceValues.opacity },
+                {
+                  transform: [
+                    { translateX: sliceValues.topTranslateX },
+                    { translateY: sliceValues.topTranslateY },
+                    { rotate: sliceTopRotate },
+                  ],
+                },
+              ]}
+            >
+              <View style={[cardStyle, styles.sliceCard, { height: cardHeight }]}>
+                <View style={cardInnerStyle}>
+                  <Text style={titleStyle} numberOfLines={1}>
+                    {task.title}
+                  </Text>
+                </View>
+              </View>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.sliceHalf,
+                styles.sliceBottomHalf,
+                {
+                  height: halfCardHeight,
+                  top: halfCardHeight,
+                  opacity: sliceValues.opacity,
+                },
+                {
+                  transform: [
+                    { translateX: sliceValues.bottomTranslateX },
+                    { translateY: sliceValues.bottomTranslateY },
+                    { rotate: sliceBottomRotate },
+                  ],
+                },
+              ]}
+            >
+              <View
+                style={[
+                  cardStyle,
+                  styles.sliceCard,
+                  {
+                    height: cardHeight,
+                    transform: [{ translateY: -halfCardHeight }],
+                  },
+                ]}
+              >
+                <View style={cardInnerStyle}>
+                  <Text style={titleStyle} numberOfLines={1}>
+                    {task.title}
+                  </Text>
+                </View>
+              </View>
+            </Animated.View>
+            <Animated.View
+              style={[
+                styles.sliceLine,
+                {
+                  backgroundColor:
+                    theme.variant === "blackYellow" ? theme.primary : theme.text,
+                  opacity: sliceValues.lineOpacity,
+                  top: halfCardHeight - 1,
+                  transform: [{ scaleX: sliceValues.lineScaleX }],
+                },
+              ]}
+            />
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${task.title}を完了`}
+            disabled={isCompleting}
+            onPress={tapComplete}
+            style={cardStyle}
+          >
+            <View style={cardInnerStyle}>
+              <Text style={titleStyle} numberOfLines={1}>
+                {task.title}
+              </Text>
+            </View>
+          </Pressable>
+        )}
       </Animated.View>
     </Animated.View>
   );
@@ -872,6 +1607,132 @@ const styles = StyleSheet.create({
   rightScaleAnchor: {
     width: "100%",
     transformOrigin: "right center",
+  },
+  shatterStage: {
+    position: "relative",
+    width: "100%",
+    overflow: "visible",
+  },
+  shatterPiece: {
+    position: "absolute",
+    overflow: "hidden",
+  },
+  shatterTopLeft: {
+    left: -6,
+    top: -10,
+    width: "54%",
+    transformOrigin: "right bottom",
+  },
+  shatterTopRight: {
+    right: -8,
+    top: -3,
+    width: "62%",
+    transformOrigin: "left bottom",
+  },
+  shatterBottomLeft: {
+    left: -10,
+    width: "63%",
+    transformOrigin: "right top",
+  },
+  shatterBottomRight: {
+    right: -9,
+    width: "58%",
+    transformOrigin: "left top",
+  },
+  shatterCenter: {
+    left: "38%",
+    top: "12%",
+    width: "28%",
+    height: "76%",
+    transformOrigin: "center center",
+    zIndex: 3,
+  },
+  shatterPieceSurface: {
+    width: "100%",
+    height: "100%",
+    borderWidth: 2,
+    borderRadius: 10,
+  },
+  shatterShardTopLeft: {
+    marginLeft: -18,
+    marginTop: -8,
+    width: "128%",
+    height: "118%",
+    transform: [{ skewX: "-22deg" }, { skewY: "8deg" }, { rotate: "-7deg" }],
+  },
+  shatterShardTopRight: {
+    marginLeft: -12,
+    marginTop: -14,
+    width: "126%",
+    height: "126%",
+    transform: [{ skewX: "18deg" }, { skewY: "-11deg" }, { rotate: "9deg" }],
+  },
+  shatterShardBottomLeft: {
+    marginLeft: -16,
+    marginTop: -7,
+    width: "122%",
+    height: "126%",
+    transform: [{ skewX: "21deg" }, { skewY: "12deg" }, { rotate: "8deg" }],
+  },
+  shatterShardBottomRight: {
+    marginLeft: -10,
+    marginTop: -18,
+    width: "132%",
+    height: "128%",
+    transform: [{ skewX: "-17deg" }, { skewY: "-15deg" }, { rotate: "-10deg" }],
+  },
+  shatterShardCenter: {
+    marginLeft: -8,
+    marginTop: -10,
+    width: "130%",
+    height: "120%",
+    borderRadius: 6,
+    transform: [{ skewX: "29deg" }, { skewY: "-18deg" }, { rotate: "18deg" }],
+  },
+  blackYellowShatterPieceSurface: {
+    borderWidth: 1,
+    borderRadius: 0,
+  },
+  shatterImpact: {
+    position: "absolute",
+    left: "50%",
+    top: "50%",
+    width: 34,
+    height: 34,
+    marginLeft: -17,
+    marginTop: -17,
+    borderWidth: 3,
+    borderRadius: 999,
+    zIndex: 6,
+  },
+  sliceStage: {
+    position: "relative",
+    width: "100%",
+    overflow: "visible",
+  },
+  sliceHalf: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    overflow: "hidden",
+  },
+  sliceTopHalf: {
+    top: 0,
+    transformOrigin: "center bottom",
+  },
+  sliceBottomHalf: {
+    transformOrigin: "center top",
+  },
+  sliceCard: {
+    minHeight: 0,
+  },
+  sliceLine: {
+    position: "absolute",
+    left: -4,
+    right: -4,
+    height: 3,
+    borderRadius: 999,
+    zIndex: 5,
   },
   card: {
     width: "100%",
