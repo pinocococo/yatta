@@ -47,6 +47,7 @@ const blueWaveImage = require("../assets/wave-blue.png");
 const completeLogoBlueImage = require("../assets/yatta-complete-blue.png");
 const completeLogoYellowImage = require("../assets/yatta-complete-yellow.png");
 const allCompleteSound = require("../assets/audio/all-complete.mp3");
+let playingAllCompleteSound: Audio.Sound | null = null;
 
 const reorderLayoutTransition = LinearTransition.duration(180).reduceMotion(
   ReduceMotion.Never,
@@ -117,18 +118,37 @@ const formatClockTime = (date: Date) =>
 
 const playAllCompleteSound = async () => {
   try {
+    if (playingAllCompleteSound) {
+      await playingAllCompleteSound.stopAsync().catch(() => undefined);
+      await playingAllCompleteSound.unloadAsync().catch(() => undefined);
+      playingAllCompleteSound = null;
+    }
     const { sound } = await Audio.Sound.createAsync(allCompleteSound, {
       shouldPlay: true,
       volume: 1,
     });
+    playingAllCompleteSound = sound;
     sound.setOnPlaybackStatusUpdate((status) => {
       if (status.isLoaded && status.didJustFinish) {
-        void sound.unloadAsync();
+        if (playingAllCompleteSound === sound) {
+          playingAllCompleteSound = null;
+        }
+        void sound.unloadAsync().catch(() => undefined);
       }
     });
   } catch {
     // Completion display should still work if the sound cannot be played.
   }
+};
+
+const stopAllCompleteSound = async () => {
+  const sound = playingAllCompleteSound;
+  if (!sound) {
+    return;
+  }
+  playingAllCompleteSound = null;
+  await sound.stopAsync().catch(() => undefined);
+  await sound.unloadAsync().catch(() => undefined);
 };
 
 export default function YattaApp() {
@@ -238,9 +258,14 @@ export default function YattaApp() {
     const subscription = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         setPeriodToCurrentTime(data);
+      } else {
+        void stopAllCompleteSound();
       }
     });
-    return () => subscription.remove();
+    return () => {
+      subscription.remove();
+      void stopAllCompleteSound();
+    };
   }, [data]);
 
   if (!data) {

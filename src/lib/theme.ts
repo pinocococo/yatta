@@ -1,8 +1,8 @@
 import { Theme, ThemeColor } from "@/types/yatta";
 
 export const THEME_COLORS: Record<ThemeColor, string> = {
-  blue: "#00B4CA",
   blackYellow: "#BEE853",
+  blue: "#00B4CA",
 };
 
 export const normalizeThemeColor = (themeColor?: string): ThemeColor =>
